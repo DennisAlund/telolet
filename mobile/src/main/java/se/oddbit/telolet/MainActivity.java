@@ -32,12 +32,20 @@ import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import se.oddbit.telolet.util.OpenLocationCode;
+
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+import static se.oddbit.telolet.util.Constants.Analytics.Events.LOCATION;
+import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC_10;
+import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC_8;
+import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_LOCATIONS;
 
 public class MainActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -45,19 +53,19 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     private static final int RC_SIGN_IN = 42;
     private static final int RC_LOCATION_PERMISSIONS = 0x10c;
 
-    public static final long LOCATION_UPDATE_INTERVAL = 10000;
-    public static final long FASTEST_LOCATION_UPDATE_INTERVAL = LOCATION_UPDATE_INTERVAL / 2;
+    private static final long LOCATION_UPDATE_INTERVAL = 10000;
+    private static final long FASTEST_LOCATION_UPDATE_INTERVAL = LOCATION_UPDATE_INTERVAL / 2;
 
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "telolet_is_requesting_location_updates";
     private static final String LOCATION_KEY = "telolet_current_location";
-    private static final String LAST_UPDATED_TIME_STRING_KEY = "telolet_last_location_update";
 
     private View mRootView;
     private boolean mRequestingLocationUpdates = false;
 
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
-    protected Location mCurrentLocation;
+    private OpenLocationCode mCurrentLocation;
+    private FirebaseUser mFirebaseUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,16 +103,18 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     @Override
     protected void onPause() {
-        super.onPause();
+        FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onPause");
+        FirebaseAuth.getInstance().removeAuthStateListener(this);
         stopLocationUpdates();
+        super.onPause();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (mGoogleApiClient.isConnected() && !mRequestingLocationUpdates) {
-            startLocationUpdates();
-        }
+        FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onResume");
+        FirebaseAuth.getInstance().addAuthStateListener(this);
+        startLocationUpdates();
     }
 
     @Override
@@ -142,16 +152,16 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
         switch (resultCode) {
             case RESULT_OK:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Finished Firebase UI Auth Process Successfully");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Finished Firebase UI Auth Process Successfully");
                 break;
 
             case RESULT_CANCELED:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Cancelled Firebase UI Auth Process");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Cancelled Firebase UI Auth Process");
                 startSignInProcess();
                 break;
 
             case ResultCodes.RESULT_NO_NETWORK:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Failed Firebase UI Auth Process: no network");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Failed Firebase UI Auth Process: no network");
                 Snackbar.make(mRootView, R.string.no_internet_connection, Snackbar.LENGTH_INDEFINITE).show();
                 startSignInProcess();
                 break;
@@ -161,43 +171,47 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     protected void onSaveInstanceState(final Bundle savedInstanceState) {
         savedInstanceState.putBoolean(REQUESTING_LOCATION_UPDATES_KEY, mRequestingLocationUpdates);
-        savedInstanceState.putParcelable(LOCATION_KEY, mCurrentLocation);
+        if (mCurrentLocation != null) {
+            savedInstanceState.putString(LOCATION_KEY, mCurrentLocation.getCode());
+        }
+
         super.onSaveInstanceState(savedInstanceState);
     }
 
     @Override
     public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
-        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
-        if (firebaseUser == null) {
+        if (firebaseAuth.getCurrentUser() == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: NOT LOGGED IN");
             return;
         }
 
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onAuthStateChanged {method: '%s', email: '%s', uid: '%s'}",
-                firebaseUser.getProviderId(), firebaseUser.getEmail(), firebaseUser.getUid()));
+        mFirebaseUser = firebaseAuth.getCurrentUser();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onAuthStateChanged: method: '%s', email: '%s', uid: '%s'",
+                mFirebaseUser.getProviderId(), mFirebaseUser.getEmail(), mFirebaseUser.getUid()));
 
-        Bundle bundle = new Bundle();
-        bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, firebaseUser.getProviderId());
+        final Bundle bundle = new Bundle();
+        bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, mFirebaseUser.getProviderId());
         FirebaseAnalytics.getInstance(this).logEvent(FirebaseAnalytics.Event.LOGIN, bundle);
     }
 
     @Override
     public void onConnected(@Nullable final Bundle bundle) {
-        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Connected to GoogleApiClient");
+        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: Connected to GoogleApiClient");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, RC_LOCATION_PERMISSIONS);
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: Requesting missing permissions");
             return;
         }
 
         if (mCurrentLocation == null) {
-            mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+            final Location lastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+            mCurrentLocation = new OpenLocationCode(lastLocation.getLatitude(), lastLocation.getLongitude());
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: No current location. Using last known location: " + mCurrentLocation.getCode());
         }
 
-        if (mRequestingLocationUpdates) {
-            startLocationUpdates();
-        }
+        startLocationUpdates();
     }
 
     @Override
@@ -213,9 +227,16 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     @Override
     public void onLocationChanged(final Location location) {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onLocationChanged: " + location.toString());
-        mCurrentLocation = location;
-        Snackbar.make(mRootView, location.toString(), Snackbar.LENGTH_INDEFINITE).show();
+        final OpenLocationCode newLocation = new OpenLocationCode(location.getLatitude(), location.getLongitude());
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onLocationChanged: " + newLocation.getCode());
+
+        final Bundle bundle = new Bundle();
+        bundle.putString(OLC_10, newLocation.getCode());
+        bundle.putString(OLC_8, newLocation.getCode().substring(0, 8));
+        FirebaseAnalytics.getInstance(this).logEvent(LOCATION, bundle);
+
+        saveLocation(newLocation, mCurrentLocation);
+        mCurrentLocation = newLocation;
     }
 
     @Override
@@ -234,19 +255,30 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     }
 
     private void startLocationUpdates() {
-        mRequestingLocationUpdates = true;
+        if (mRequestingLocationUpdates) {
+            return;
+        }
+
+        if (!mGoogleApiClient.isConnected()) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startLocationUpdates: Google API client is not connected. Can't start.");
+            return;
+        }
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, RC_LOCATION_PERMISSIONS);
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "startLocationUpdates: Requesting missing permissions");
             return;
         }
+
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startLocationUpdates: Requesting location updates");
+        mRequestingLocationUpdates = true;
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
 
-
     private void stopLocationUpdates() {
         if (mRequestingLocationUpdates) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Stop location updates.");
             mRequestingLocationUpdates = false;
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
@@ -267,6 +299,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     private void startSignInProcess() {
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Start Firebase UI Auth login process.");
             final List<AuthUI.IdpConfig> providers = Arrays.asList(
                     new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build(),
                     new AuthUI.IdpConfig.Builder(AuthUI.FACEBOOK_PROVIDER).build());
@@ -294,10 +327,28 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     }
 
     protected void createLocationRequest() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "createLocationRequest");
         mLocationRequest = new LocationRequest();
 
         mLocationRequest.setInterval(LOCATION_UPDATE_INTERVAL);
         mLocationRequest.setFastestInterval(FASTEST_LOCATION_UPDATE_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        startLocationUpdates();
+    }
+
+
+    private void saveLocation(final OpenLocationCode newLocation, final OpenLocationCode oldLocation) {
+        final String oldLocationBox = oldLocation.getCode().substring(0, 8);
+        final String newLocationBox = newLocation.getCode().substring(0, 8);
+
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: moved from '%s' to '%s'", oldLocation.getCode(), newLocation.getCode()));
+
+        if (!oldLocationBox.equals(newLocationBox) && mFirebaseUser != null) {
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format("User '%s' moved from '%s' to '%s'",
+                    mFirebaseUser.getUid(), oldLocation.getCode(), newLocation.getCode()));
+            final DatabaseReference userLocationsRef = FirebaseDatabase.getInstance().getReference(USER_LOCATIONS);
+            userLocationsRef.child(oldLocationBox).child(mFirebaseUser.getUid()).removeValue();
+            userLocationsRef.child(newLocationBox).child(mFirebaseUser.getUid()).setValue(true);
+        }
     }
 }

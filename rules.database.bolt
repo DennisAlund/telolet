@@ -1,0 +1,10 @@
+path /userLocations/{olc} {
+    read() { prior(this[auth.uid]) != null }
+    /{user_id} is Boolean {
+        write() { isCurrentUser(user_id) }
+    }
+}
+
+
+isSignedIn() { auth !== null }
+isCurrentUser(uid) { isSignedIn() && auth.uid === uid }
