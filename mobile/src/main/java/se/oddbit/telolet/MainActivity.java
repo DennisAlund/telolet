@@ -128,8 +128,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.action_settings:
-                return true;
             case R.id.action_logout:
                 final Context context = this;
                 AuthUI.getInstance().signOut(this).addOnCompleteListener(new OnCompleteListener<Void>() {
