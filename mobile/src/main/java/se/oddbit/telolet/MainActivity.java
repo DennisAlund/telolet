@@ -338,8 +338,8 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
 
     private void saveLocation(final OpenLocationCode newLocation, final OpenLocationCode oldLocation) {
-        final String oldLocationBox = oldLocation.getCode().substring(0, 8);
-        final String newLocationBox = newLocation.getCode().substring(0, 8);
+        final String oldLocationBox = oldLocation.getCode().substring(0, 8).toUpperCase();
+        final String newLocationBox = newLocation.getCode().substring(0, 8).toUpperCase();
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: moved from '%s' to '%s'", oldLocation.getCode(), newLocation.getCode()));
 
