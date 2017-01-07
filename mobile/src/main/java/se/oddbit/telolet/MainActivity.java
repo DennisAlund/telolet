@@ -37,8 +37,9 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 
+import se.oddbit.telolet.models.PublicUser;
+import se.oddbit.telolet.util.Auth;
 import se.oddbit.telolet.util.OpenLocationCode;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -65,7 +66,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private OpenLocationCode mCurrentLocation;
-    private FirebaseUser mFirebaseUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     protected void onPause() {
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onPause");
+        Auth.getInstance().stop();
         FirebaseAuth.getInstance().removeAuthStateListener(this);
         stopLocationUpdates();
         super.onPause();
@@ -114,6 +115,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         super.onResume();
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onResume");
         FirebaseAuth.getInstance().addAuthStateListener(this);
+        Auth.getInstance().start();
         startLocationUpdates();
     }
 
@@ -180,17 +182,16 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     @Override
     public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
-        if (firebaseAuth.getCurrentUser() == null) {
+        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+        if (firebaseUser == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: NOT LOGGED IN");
             return;
         }
 
-        mFirebaseUser = firebaseAuth.getCurrentUser();
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onAuthStateChanged: method: '%s', email: '%s', uid: '%s'",
-                mFirebaseUser.getProviderId(), mFirebaseUser.getEmail(), mFirebaseUser.getUid()));
+        Auth.getInstance().connect(firebaseUser);
 
         final Bundle bundle = new Bundle();
-        bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, mFirebaseUser.getProviderId());
+        bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, firebaseUser.getProviderId());
         FirebaseAnalytics.getInstance(this).logEvent(FirebaseAnalytics.Event.LOGIN, bundle);
     }
 
@@ -338,17 +339,19 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
 
     private void saveLocation(final OpenLocationCode newLocation, final OpenLocationCode oldLocation) {
-        final String oldLocationBox = oldLocation.getCode().substring(0, 8).toUpperCase();
-        final String newLocationBox = newLocation.getCode().substring(0, 8).toUpperCase();
-
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: moved from '%s' to '%s'", oldLocation.getCode(), newLocation.getCode()));
 
-        if (!oldLocationBox.equals(newLocationBox) && mFirebaseUser != null) {
-            FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format("User '%s' moved from '%s' to '%s'",
-                    mFirebaseUser.getUid(), oldLocation.getCode(), newLocation.getCode()));
+        final PublicUser publicUser = Auth.getInstance().getPublicUser();
+        if (publicUser != null) {
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format("User moved from '%s' to '%s'", oldLocation.getCode(), newLocation.getCode()));
             final DatabaseReference userLocationsRef = FirebaseDatabase.getInstance().getReference(USER_LOCATIONS);
-            userLocationsRef.child(oldLocationBox).child(mFirebaseUser.getUid()).removeValue();
-            userLocationsRef.child(newLocationBox).child(mFirebaseUser.getUid()).setValue(true);
+            final String oldLocationBox = oldLocation.getCode().substring(0, 8).toUpperCase();
+            final String newLocationBox = newLocation.getCode().substring(0, 8).toUpperCase();
+
+            if (!oldLocationBox.equals(newLocationBox)) {
+                userLocationsRef.child(oldLocationBox).child(publicUser.getUid()).removeValue();
+            }
+            userLocationsRef.child(newLocationBox).child(publicUser.getUid()).setValue(publicUser);
         }
     }
 }

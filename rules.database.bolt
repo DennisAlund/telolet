@@ -1,8 +1,22 @@
 path /userLocations/{olc} {
     read() { prior(this[auth.uid]) != null }
-    /{user_id} is Boolean {
+    /{user_id} is PublicUser {
         write() { isCurrentUser(user_id) }
+        validate() { user_id == this.uid }
     }
+}
+
+path /publicUsers/{user_id} is PublicUser {
+    read() { isCurrentUser(user_id) }
+    write() { isCurrentUser(user_id) }
+    validate() { user_id == this.uid }
+}
+
+type PublicUser {
+   uid: String,
+   image: String | Null,
+   handle: String,
+   color: String
 }
 
 

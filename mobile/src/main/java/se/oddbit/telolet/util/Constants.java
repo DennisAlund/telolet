@@ -14,6 +14,7 @@ public final class Constants {
     public static final class Firebase {
         public static final class Database {
             public static final String USER_LOCATIONS = "userLocations";
+            public static final String PUBLIC_USERS = "publicUsers";
         }
     }
 }
