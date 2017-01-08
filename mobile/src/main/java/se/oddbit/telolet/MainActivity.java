@@ -255,7 +255,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
             mUid = firebaseUser.getUid();
 
             if (mFirebaseUserDatabaseRef == null) {
-                mFirebaseUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USERS).child(mUid);
+                mFirebaseUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USER_PROFILES).child(mUid);
             }
             mFirebaseUserDatabaseRef.addValueEventListener(this);
         }
@@ -268,14 +268,18 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         }
 
         @Override
-        public void onDataChange(final DataSnapshot dataSnapshot) {
-            if (!dataSnapshot.exists()) {
+        public void onDataChange(final DataSnapshot snapshot) {
+            if (!snapshot.exists()) {
                 Map<String, Object> childUpdates = new HashMap<>();
                 childUpdates.put(String.format("/%s/%s", USERS, mUid), new User(mUid));
                 childUpdates.put(String.format("/%s/%s", USER_PROFILES, mUid), UserProfile.createRandom(mContext, mUid));
 
                 FirebaseDatabase.getInstance().getReference().updateChildren(childUpdates);
+                return;
             }
+
+            final UserProfile userProfile = snapshot.getValue(UserProfile.class);
+            setTitle(userProfile.getHandle());
 
             stop();
             startService(new Intent(mContext, LocationService.class));
