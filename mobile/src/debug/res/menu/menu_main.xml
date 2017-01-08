@@ -1,0 +1,19 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:app="http://schemas.android.com/apk/res-auto"
+      xmlns:tools="http://schemas.android.com/tools"
+      tools:context="se.oddbit.telolet.MainActivity">
+
+    <item
+        android:id="@+id/action_fetch_remote_config"
+        android:orderInCategory="100"
+        android:title="@string/menu_fetch_remote_config"
+        android:visible="true"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_logout"
+        android:orderInCategory="100"
+        android:title="@string/menu_logout"
+        android:visible="true"
+        app:showAsAction="never"/>
+</menu>

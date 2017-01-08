@@ -4,4 +4,9 @@
     <string name="menu_logout">Log out</string>
     <string name="try_again">Try again</string>
     <string name="permissions_must_be_granted">Permissions must be granted</string>
+    <string name="public_user_image_content_description">Profile image</string>
+    <string name="placeholder_public_user_handle">Bus 123</string>
+    <string name="progress_loading">Preparing you for fun…</string>
+    <string name="base_handle">Bus</string>
+    <string name="bus_image_base_file_name" translatable="false">bus</string>
 </resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<defaultsMap>
+    <entry>
+        <key>LOCATION_UPDATES_THRESHOLD_METERS</key>
+        <value>100</value>
+    </entry>
+    <entry>
+        <key>LOCATION_UPDATES_INTERVAL</key>
+        <value>1800000</value>
+    </entry>
+    <entry>
+        <key>FASTEST_LOCATION_UPDATE_INTERVAL</key>
+        <value>30000</value>
+    </entry>
+    <entry>
+        <key>OLC_BOX_SIZE</key>
+        <value>8</value>
+    </entry>
+</defaultsMap>
+
