@@ -1,6 +1,5 @@
 package se.oddbit.telolet;
 
-import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -35,7 +34,6 @@ public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthS
 
     private RecyclerView mMemberList;
     private UserProfileRecyclerAdapter mRecyclerAdapter;
-    private ProgressDialog mProgressDialog;
     private DatabaseReference mUserDatabaseRef;
     private User mUser;
 
@@ -140,8 +138,8 @@ public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthS
         }
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateAdapter: " + olcBox);
-
-        mRecyclerAdapter = new UserProfileRecyclerAdapter(getActivity(), FirebaseDatabase.getInstance().getReference(USER_LOCATIONS).child(olcBox));
+        final DatabaseReference ref = FirebaseDatabase.getInstance().getReference(USER_LOCATIONS).child(olcBox);
+        mRecyclerAdapter = new UserProfileRecyclerAdapter(getActivity(), mUser, ref);
         mMemberList.setAdapter(mRecyclerAdapter);
     }
 }

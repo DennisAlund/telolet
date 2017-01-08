@@ -17,31 +17,37 @@ import com.google.firebase.database.Query;
 import java.util.Locale;
 
 import se.oddbit.telolet.R;
+import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.models.UserProfile;
 
 public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<UserProfile, UserProfileRecyclerAdapter.UserProfileViewHolder> {
     private static final String LOG_TAG = UserProfileRecyclerAdapter.class.getSimpleName();
     private final Context mContext;
+    private final User mUser;
 
-    public UserProfileRecyclerAdapter(final Context context, final Query memberQuery) {
-        super(UserProfile.class, R.layout.list_item_public_user, UserProfileViewHolder.class, memberQuery);
+    public UserProfileRecyclerAdapter(final Context context, final User user, final Query query) {
+        super(UserProfile.class, R.layout.list_item_public_user, UserProfileViewHolder.class, query);
         mContext = context;
+        mUser = user;
     }
 
     @Override
     protected void populateViewHolder(final UserProfileViewHolder viewHolder, final UserProfile user, final int position) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "populateViewHolder \"%s\" at position %d", user, position));
 
-        final String userId = getRef(position).getKey();
-
         viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View memberView) {
-                Toast.makeText(mContext, "Telolet: " + userId, Toast.LENGTH_LONG).show();
+                Toast.makeText(mContext, "Telolet: " + user.getUid(), Toast.LENGTH_LONG).show();
             }
         });
 
         viewHolder.bindToMember(user);
+
+        if (mUser.getUid().equals(user.getUid())) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Hiding own list item at position: " + position);
+            viewHolder.mCardView.setVisibility(View.GONE);
+        }
     }
 
     static class UserProfileViewHolder extends RecyclerView.ViewHolder {
