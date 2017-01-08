@@ -56,7 +56,6 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     private View mRootView;
     private ProgressDialog mProgressDialog;
-    private FirebaseRemoteConfig mFirebaseRemoteConfig;
     private CurrentUserListener mCurrentUserListener;
 
     @Override
@@ -98,13 +97,15 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         switch (item.getItemId()) {
             case R.id.action_fetch_remote_config:
                 FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Fetching remote config.");
-                mFirebaseRemoteConfig.fetch(1).addOnCompleteListener(new OnCompleteListener<Void>() {
+                final FirebaseRemoteConfig remoteConfig = FirebaseRemoteConfig.getInstance();
+                remoteConfig.fetch(1).addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull final Task<Void> task) {
-                        if (!task.isSuccessful()) {
-                            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch Firebase remote config. Will go with defaults");
-                        } else {
+                        if (task.isSuccessful()) {
                             FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched Firebase remote configuration");
+                            remoteConfig.activateFetched();
+                        } else {
+                            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch Firebase remote config. Will go with defaults");
                         }
                     }
                 });
