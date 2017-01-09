@@ -101,7 +101,7 @@ public class User {
 
         @Override
         public String toString() {
-            return String.format("%s{handle: %s, color: %s}", UserProfile.class.getSimpleName(), mHandle, mColor);
+            return String.format("%s{uid: %s, handle: %s}", UserProfile.class.getSimpleName(), mUid, mHandle);
         }
 
         public static UserProfile createRandom(final Context context) {

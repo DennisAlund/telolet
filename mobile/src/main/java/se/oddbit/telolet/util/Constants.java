@@ -13,7 +13,7 @@ public final class Constants {
     public static final class Firebase {
         public static final class Database {
             public static final String USER_LOCATIONS = "userLocations";
-            public static final String USER_PROFILES = "userProfiles";
+            public static final String TELOLETS = "telolets";
             public static final String USERS = "users";
         }
     }

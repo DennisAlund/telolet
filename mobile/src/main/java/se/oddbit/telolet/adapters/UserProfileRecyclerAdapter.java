@@ -8,16 +8,20 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.google.firebase.crash.FirebaseCrash;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 
 import java.util.Locale;
 
 import se.oddbit.telolet.R;
+import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.User;
+
+import static se.oddbit.telolet.util.Constants.Firebase.Database.TELOLETS;
 
 public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<User.UserProfile, UserProfileRecyclerAdapter.UserProfileViewHolder> {
     private static final String LOG_TAG = UserProfileRecyclerAdapter.class.getSimpleName();
@@ -37,7 +41,8 @@ public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<User.Use
         viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View memberView) {
-                Toast.makeText(mContext, "Telolet: " + userProfile.getUid(), Toast.LENGTH_LONG).show();
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "Clicking %s at position: %d", userProfile, position));
+                makeTeloletRequest(userProfile);
             }
         });
 
@@ -47,6 +52,16 @@ public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<User.Use
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Hiding own list item at position: " + position);
             viewHolder.mCardView.setVisibility(View.GONE);
         }
+    }
+
+    private void makeTeloletRequest(final User.UserProfile userProfile) {
+        final Telolet telolet = new Telolet();
+        telolet.setRequesterUid(mUser.getUid());
+        telolet.setReceiverUid(userProfile.getUid());
+        telolet.setRequestLocation(mUser.getCurrentLocation());
+
+        final DatabaseReference teloletsRef = FirebaseDatabase.getInstance().getReference(TELOLETS);
+        teloletsRef.child(userProfile.getUid()).push().setValue(telolet.toNewRequestMap());
     }
 
     static class UserProfileViewHolder extends RecyclerView.ViewHolder {

@@ -1,30 +1,48 @@
 path /users/{user_id} is User {
     read() { isCurrentUser(user_id) }
     write() { isCurrentUser(user_id) }
-    validate() { user_id == this.uid }
+    validate() { user_id == this.requesterUid }
 }
 
 path /userLocations/{olc} {
-    read() { prior(this[auth.uid]) != null }
+    read() { prior(this[auth.requesterUid]) != null }
     /{user_id} is UserProfile {
         write() { isCurrentUser(user_id) }
     }
 }
 
+path /telolets/{user_id} {
+    read() { isCurrentUser(user_id) }
+    path /{id} is Telolet {
+        create() { isSignedIn() && auth.uid == this.requesterUid }
+        update() { isCurrentUser(user_id) }
+    }
+}
+
 type User {
-    uid: String,
-    currentLocation: String | Null,
+    requesterUid: String,
+    requestLocation: String | Null,
     profile: UserProfile
 
-    validate() { this.uid == this.profile.uid }
+    validate() { this.requesterUid == this.profile.requesterUid }
 }
 
 type UserProfile {
-    uid: String,
+    requesterUid: String,
     image: String | Null,
     handle: String,
     color: String
 }
 
+type Telolet {
+    requesterUid: String,
+    receiverUid: String,
+    requestLocation: String,
+    requestedAt: Number,
+    repliedAt: Number | Null,
+
+    validate() { repliedAt == null || repliedAt > requestedAt }
+}
+
 isSignedIn() { auth !== null }
-isCurrentUser(uid) { isSignedIn() && auth.uid === uid }
+isCurrentUser(requesterUid) { isSignedIn() && auth.requesterUid === requesterUid }
