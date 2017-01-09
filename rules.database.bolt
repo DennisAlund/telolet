@@ -16,7 +16,7 @@ type User {
     currentLocation: String | Null,
     profile: UserProfile
 
-    validate() { this.uid == profile.uid }
+    validate() { this.uid == this.profile.uid }
 }
 
 type UserProfile {

@@ -133,7 +133,7 @@ public class LocationService extends Service implements
 
         if (newLocation.equals(mCurrentLocation)) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                    String.format("onLocationChanged: Location notification. Still at %s)", mCurrentLocation.getCode()));
+                    String.format("onLocationChanged: Location notification (still at %s)", mCurrentLocation.getCode()));
             return;
         }
 
@@ -249,8 +249,14 @@ public class LocationService extends Service implements
             final User user = snapshot.getValue(User.class);
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onDataChange: %s", user));
 
-            final String lastKnownLocation = user.getCurrentLocation();
+            String lastKnownLocation = user.getCurrentLocation();
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Saving new locations (%s => %s)", lastKnownLocation, mNewLocation));
+
+            if (lastKnownLocation == null || lastKnownLocation.isEmpty()) {
+                // Use a default string of equal length as a full OLC (to not break the substring op below)
+                lastKnownLocation = "-----------";
+            }
+
 
             final Map<String, Object> databaseUpdates = new HashMap<>();
             final Bundle analyticsBundle = new Bundle();
