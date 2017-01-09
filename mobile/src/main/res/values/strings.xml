@@ -9,4 +9,5 @@
     <string name="progress_loading">Preparing you for fun…</string>
     <string name="base_handle">Bus</string>
     <string name="bus_image_base_file_name" translatable="false">bus</string>
+    <string name="menu_fetch_remote_config">Fetch remote config</string>
 </resources>
