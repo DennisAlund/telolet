@@ -31,18 +31,14 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import se.oddbit.telolet.models.User;
-import se.oddbit.telolet.models.UserProfile;
 import se.oddbit.telolet.services.LocationService;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static se.oddbit.telolet.R.string.progress_loading;
 import static se.oddbit.telolet.util.Constants.Firebase.Database.USERS;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_PROFILES;
 
 public class MainActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener {
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
@@ -255,7 +251,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
             mUid = firebaseUser.getUid();
 
             if (mFirebaseUserDatabaseRef == null) {
-                mFirebaseUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USER_PROFILES).child(mUid);
+                mFirebaseUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USERS).child(mUid);
             }
             mFirebaseUserDatabaseRef.addValueEventListener(this);
         }
@@ -270,16 +266,12 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         @Override
         public void onDataChange(final DataSnapshot snapshot) {
             if (!snapshot.exists()) {
-                Map<String, Object> childUpdates = new HashMap<>();
-                childUpdates.put(String.format("/%s/%s", USERS, mUid), new User(mUid));
-                childUpdates.put(String.format("/%s/%s", USER_PROFILES, mUid), UserProfile.createRandom(mContext, mUid));
-
-                FirebaseDatabase.getInstance().getReference().updateChildren(childUpdates);
+                mFirebaseUserDatabaseRef.setValue(new User(mContext, mUid));
                 return;
             }
 
-            final UserProfile userProfile = snapshot.getValue(UserProfile.class);
-            setTitle(userProfile.getHandle());
+            final User user = snapshot.getValue(User.class);
+            setTitle(user.getProfile().getHandle());
 
             stop();
             startService(new Intent(mContext, LocationService.class));

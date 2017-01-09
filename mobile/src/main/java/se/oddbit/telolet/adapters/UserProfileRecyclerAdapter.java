@@ -18,33 +18,32 @@ import java.util.Locale;
 
 import se.oddbit.telolet.R;
 import se.oddbit.telolet.models.User;
-import se.oddbit.telolet.models.UserProfile;
 
-public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<UserProfile, UserProfileRecyclerAdapter.UserProfileViewHolder> {
+public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<User.UserProfile, UserProfileRecyclerAdapter.UserProfileViewHolder> {
     private static final String LOG_TAG = UserProfileRecyclerAdapter.class.getSimpleName();
     private final Context mContext;
     private final User mUser;
 
     public UserProfileRecyclerAdapter(final Context context, final User user, final Query query) {
-        super(UserProfile.class, R.layout.list_item_public_user, UserProfileViewHolder.class, query);
+        super(User.UserProfile.class, R.layout.list_item_public_user, UserProfileViewHolder.class, query);
         mContext = context;
         mUser = user;
     }
 
     @Override
-    protected void populateViewHolder(final UserProfileViewHolder viewHolder, final UserProfile user, final int position) {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "populateViewHolder \"%s\" at position %d", user, position));
+    protected void populateViewHolder(final UserProfileViewHolder viewHolder, final User.UserProfile userProfile, final int position) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "populateViewHolder \"%s\" at position %d", userProfile, position));
 
         viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View memberView) {
-                Toast.makeText(mContext, "Telolet: " + user.getUid(), Toast.LENGTH_LONG).show();
+                Toast.makeText(mContext, "Telolet: " + userProfile.getUid(), Toast.LENGTH_LONG).show();
             }
         });
 
-        viewHolder.bindToMember(user);
+        viewHolder.bindToMember(userProfile);
 
-        if (mUser.getUid().equals(user.getUid())) {
+        if (mUser.getUid().equals(userProfile.getUid())) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Hiding own list item at position: " + position);
             viewHolder.mCardView.setVisibility(View.GONE);
         }
@@ -62,7 +61,7 @@ public class UserProfileRecyclerAdapter extends FirebaseRecyclerAdapter<UserProf
             mUserHandleView = (TextView) rootItemView.findViewById(R.id.public_user_handle);
         }
 
-        void bindToMember(final UserProfile user) {
+        void bindToMember(final User.UserProfile user) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Binding view holder to: %s", user));
             mCardView.setCardBackgroundColor(Color.parseColor("#" + user.getColor()));
             mUserHandleView.setText(user.getHandle());

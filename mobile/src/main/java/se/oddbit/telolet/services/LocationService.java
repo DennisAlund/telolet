@@ -34,13 +34,13 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import se.oddbit.telolet.models.UserProfile;
+import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.util.OpenLocationCode;
 
 import static se.oddbit.telolet.util.Constants.Analytics.Events.LOCATION;
+import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
 import static se.oddbit.telolet.util.Constants.Firebase.Database.USERS;
 import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_LOCATIONS;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_PROFILES;
 
 public class LocationService extends Service implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -131,10 +131,16 @@ public class LocationService extends Service implements
     public void onLocationChanged(final Location location) {
         final OpenLocationCode newLocation = new OpenLocationCode(location.getLatitude(), location.getLongitude());
 
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onLocationChanged: " + newLocation.getCode());
+        if (newLocation.equals(mCurrentLocation)) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
+                    String.format("onLocationChanged: Location notification. Still at %s)", mCurrentLocation.getCode()));
+            return;
+        }
 
-        saveNewLocation(mCurrentLocation.getCode(), newLocation.getCode());
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
+                String.format("onLocationChanged: Location updated (%s => %s)", mCurrentLocation.getCode(), newLocation.getCode()));
         mCurrentLocation = newLocation;
+        saveCurrentLocation();
     }
 
     private void restartLocationUpdates() {
@@ -203,43 +209,33 @@ public class LocationService extends Service implements
         mGoogleApiClient.connect();
     }
 
+
     private void saveCurrentLocation() {
-        if (mCurrentLocation == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveCurrentLocation: Current location not yet set");
-            return;
-        }
-
-        // Use a valid Firebase key, that is 11 characters long; the same length as a full OLC
-        saveNewLocation("-----------", mCurrentLocation.getCode());
-    }
-
-    private void saveNewLocation(final String oldLocation, final String newLocation) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                String.format("saveNewLocation: %s => %s", oldLocation, newLocation));
+                String.format("saveCurrentLocation: %s", mCurrentLocation.getCode()));
 
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveNewLocation: Firebase user not yet set. Can't save.");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveCurrentLocation: Firebase user not yet set. Can't save.");
             return;
         }
 
         final String uid = firebaseUser.getUid();
-        final DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference(USER_PROFILES).child(uid);
-        databaseReference.addListenerForSingleValueEvent(new UpdateUserLocationDataListener(this, uid, oldLocation, newLocation));
+        final DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference(USERS).child(uid);
+        databaseReference.addListenerForSingleValueEvent(new UpdateUserLocationDataListener(this, uid, mCurrentLocation.getCode()));
     }
 
 
-    private class UpdateUserLocationDataListener implements ValueEventListener {
+    private static class UpdateUserLocationDataListener implements ValueEventListener {
+        private static final String LOG_TAG = UpdateUserLocationDataListener.class.getSimpleName();
         final Context mContext;
         private final String mUid;
-        private final String mOldLocation;
         private final String mNewLocation;
 
 
-        UpdateUserLocationDataListener(final Context context, final String uid, final String oldLocation, final String newLocation) {
+        UpdateUserLocationDataListener(final Context context, final String uid, final String newLocation) {
             mContext = context;
             mUid = uid;
-            mOldLocation = oldLocation;
             mNewLocation = newLocation;
         }
 
@@ -250,26 +246,33 @@ public class LocationService extends Service implements
                 return;
             }
 
-            final UserProfile userProfile = snapshot.getValue(UserProfile.class);
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("%s:onDataChange: %s", UpdateUserLocationDataListener.class.getSimpleName(), userProfile));
+            final User user = snapshot.getValue(User.class);
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onDataChange: %s", user));
 
+            final String lastKnownLocation = user.getCurrentLocation();
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Saving new locations (%s => %s)", lastKnownLocation, mNewLocation));
 
             final Map<String, Object> databaseUpdates = new HashMap<>();
             final Bundle analyticsBundle = new Bundle();
 
-            for (int boxSize : new int[]{4, 6, 8, mNewLocation.length()}) {
-                final String oldOlcBox = mOldLocation.substring(0, boxSize);
+            // The length 11 is for full length OLC that are actually 10 value characters
+            for (int boxSize : new int[]{4, 6, 8, 11}) {
+                final String oldOlcBox = lastKnownLocation.substring(0, boxSize);
                 final String newOlcBox = mNewLocation.substring(0, boxSize);
 
-                analyticsBundle.putString("olc_" + boxSize, newOlcBox);
-                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, oldOlcBox, userProfile.getUid()), null);
-                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, newOlcBox, userProfile.getUid()), userProfile);
+                // Put in location data for the box size.
+                analyticsBundle.putString(OLC + (boxSize == 11 ? 10 : boxSize), newOlcBox);
 
-                if (boxSize == (int) mRemoteConfig.getLong("OLC_BOX_SIZE")) {
-                    // Save the current user location box according to the configured accuracy
-                    databaseUpdates.put(String.format("/%s/%s/currentLocation", USERS, userProfile.getUid()), newOlcBox);
-                }
+                // Remove all previously known location box appearances
+                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, oldOlcBox, user.getUid()), null);
+
+                // Add user to new location boxes, this might put back a value that was just nulled above if the substring is the same
+                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, newOlcBox, user.getUid()), user.getProfile());
             }
+
+            // Update user location with full accuracy
+            user.setCurrentLocation(mNewLocation);
+            databaseUpdates.put(String.format("/%s/%s", USERS, user.getUid()), user);
 
             FirebaseDatabase.getInstance().getReference().updateChildren(databaseUpdates);
             FirebaseAnalytics.getInstance(mContext).logEvent(LOCATION, analyticsBundle);

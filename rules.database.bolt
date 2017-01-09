@@ -1,4 +1,4 @@
-path /users/{user_id} {
+path /users/{user_id} is User {
     read() { isCurrentUser(user_id) }
     write() { isCurrentUser(user_id) }
     validate() { user_id == this.uid }
@@ -8,28 +8,23 @@ path /userLocations/{olc} {
     read() { prior(this[auth.uid]) != null }
     /{user_id} is UserProfile {
         write() { isCurrentUser(user_id) }
-        validate() { user_id == this.uid }
     }
-}
-
-path /userProfiles/{user_id} is UserProfile {
-    read() { isCurrentUser(user_id) }
-    write() { isCurrentUser(user_id) }
-    validate() { user_id == this.uid }
 }
 
 type User {
     uid: String,
-    currentLocation: String | Null
+    currentLocation: String | Null,
+    profile: UserProfile
+
+    validate() { this.uid == profile.uid }
 }
 
 type UserProfile {
-   uid: String,
-   image: String | Null,
-   handle: String,
-   color: String
+    uid: String,
+    image: String | Null,
+    handle: String,
+    color: String
 }
-
 
 isSignedIn() { auth !== null }
 isCurrentUser(uid) { isSignedIn() && auth.uid === uid }

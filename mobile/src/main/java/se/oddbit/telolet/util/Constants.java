@@ -6,10 +6,7 @@ public final class Constants {
             public static final String LOCATION = "location";
         }
         public static final class Param {
-            public static final String OLC_10 = "olc_10";
-            public static final String OLC_8 = "olc_8";
-            public static final String OLC_6 = "olc_6";
-            public static final String OLC_4 = "olc_4";
+            public static final String OLC = "olc";
         }
     }
 
