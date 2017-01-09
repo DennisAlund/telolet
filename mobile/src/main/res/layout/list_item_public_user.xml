@@ -22,11 +22,12 @@
             android:layout_width="128dp"
             android:layout_height="128dp"
             android:layout_gravity="start"
-            android:layout_marginBottom="10dp"
             android:contentDescription="@string/public_user_image_content_description"
             android:padding="0dp"
             android:scaleType="centerCrop"
-            app:srcCompat="@android:drawable/sym_def_app_icon"/>
+            app:srcCompat="@drawable/ic_directions_bus_black_128dp"
+            android:adjustViewBounds="false"
+            android:cropToPadding="false"/>
 
         <TextView
             android:id="@+id/public_user_handle"
