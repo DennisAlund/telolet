@@ -186,7 +186,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<FirebaseUs
         void bindToMember(final User user) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Binding view holder to: %s", user));
             mRootView.setVisibility(View.VISIBLE);
-            mCardView.setCardBackgroundColor(Color.parseColor("#" + user.getColor()));
+            mCardView.setCardBackgroundColor(Color.parseColor(user.getColor()));
             mCurrentUserHandleView.setText(user.getHandle());
         }
     }
