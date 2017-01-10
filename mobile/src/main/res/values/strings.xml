@@ -10,4 +10,14 @@
     <string name="base_handle">Bus</string>
     <string name="bus_image_base_file_name" translatable="false">bus</string>
     <string name="menu_fetch_remote_config">Fetch remote config</string>
+    <string name="title_activity_invite_friends">Invite friends</string>
+    <string name="invite_friends_button">Invite your nearest friends</string>
+    <string name="invite_friends_engagement_text">Looks like this game would be more fun with some of your friends around!!!</string>
+    <string name="menu_invite_friends">Invite fun friends</string>
+    <string name="friend_invitation_title_v1">Om, Telolet, Om!</string>
+    <string name="friend_invitation_message_v1">Om, Telolet, Om! Download this awesome app and honk for me!</string>
+    <string name="friend_invitation_cta_v1">Telolelolet!!!</string>
+    <string name="friend_invitation_title_v2">Invite fun friends</string>
+    <string name="friend_invitation_message_v2">Om, Telolet, Om! Join me in this fun location based game!</string>
+    <string name="friend_invitation_cta_v2">Join your friends!</string>
 </resources>

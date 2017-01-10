@@ -16,5 +16,9 @@
         <key>OLC_BOX_SIZE</key>
         <value>8</value>
     </entry>
+    <entry>
+        <key>TEST_GROUP</key>
+        <value>A</value>
+    </entry>
 </defaultsMap>
 

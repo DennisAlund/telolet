@@ -92,6 +92,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        if (BuildConfig.DEBUG) {
+            menu.findItem(R.id.action_fetch_remote_config).setVisible(true);
+        }
+
         return true;
     }
 
@@ -124,6 +128,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
                         startSignInProcess();
                     }
                 });
+                return true;
+
+
+            case R.id.action_invite_friends:
+                startActivity(new Intent(this, InviteFriendsActivity.class));
                 return true;
         }
 
@@ -218,7 +227,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
                     .createSignInIntentBuilder()
                     .setProviders(providers)
                     .setIsSmartLockEnabled(!BuildConfig.DEBUG)
-                    .setLogo(R.drawable.ic_launcher_web)
+                    .setLogo(R.drawable.ic_directions_bus_purple_128dp)
                     .setTheme(R.style.AppTheme)
                     .build();
 

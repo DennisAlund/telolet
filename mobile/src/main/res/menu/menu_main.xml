@@ -5,9 +5,16 @@
 
     <item
         android:id="@+id/action_fetch_remote_config"
-        android:orderInCategory="100"
+        android:orderInCategory="50"
         android:title="@string/menu_fetch_remote_config"
         android:visible="false"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_invite_friends"
+        android:orderInCategory="10"
+        android:title="@string/menu_invite_friends"
+        android:visible="true"
         app:showAsAction="never"/>
 
     <item

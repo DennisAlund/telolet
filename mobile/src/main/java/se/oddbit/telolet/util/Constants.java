@@ -1,8 +1,14 @@
 package se.oddbit.telolet.util;
 
 public final class Constants {
+    public static final class RequestCodes {
+        public static final int FRIEND_INVITATION_REQUEST = 0xf00;
+    }
+
     public static final class Analytics {
         public static final class Events {
+            public static final String FRIEND_INVITE_ACCEPTED = "invite_accepted";
+            public static final String FRIEND_INVITE_SENT = "invite_sent";
             public static final String LOCATION = "location";
             public static final String TELOLET_REQUEST = "om_telolet_om";
             public static final String TELOLET_RESPONSE = "telolelolet";
@@ -19,6 +25,7 @@ public final class Constants {
     }
 
     public static final class RemoteConfig {
+        public static final String TEST_GROUP = "TEST_GROUP";
         public static final String OLC_BOX_SIZE = "OLC_BOX_SIZE";
         public static final String LOCATION_UPDATES_THRESHOLD_METERS = "LOCATION_UPDATES_THRESHOLD_METERS";
         public static final String LOCATION_UPDATES_INTERVAL = "LOCATION_UPDATES_INTERVAL";

@@ -12,12 +12,20 @@
     tools:context="se.oddbit.telolet.MainActivityFragment"
     tools:showIn="@layout/activity_main">
 
-
     <android.support.v7.widget.RecyclerView
         android:id="@+id/user_list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:numColumns="auto_fit"
         android:scrollbars="none"/>
+
+    <FrameLayout
+        android:id="@+id/on_empty_list_placeholder_view"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <include layout="@layout/content_invite_friends"/>
+    </FrameLayout>
 
 </FrameLayout>

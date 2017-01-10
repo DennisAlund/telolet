@@ -19,8 +19,16 @@
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="telolet-664db.firebaseapp.com"
+                    android:pathPrefix="/invitation"/>
             </intent-filter>
         </activity>
 
@@ -44,20 +52,22 @@
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
             </intent-filter>
+
         </service>
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_directions_bus_black_128dp"/>
+            android:resource="@drawable/ic_directions_bus_black_24dp"/>
 
-        <service
-            android:name=".services.UserIntentService"
-            android:exported="false">
-        </service>
-        <service
-            android:name=".services.TeloletIntentService"
-            android:exported="false">
-        </service>
+        <activity
+            android:name=".InviteFriendsActivity"
+            android:label="@string/title_activity_invite_friends"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="se.oddbit.telolet.MainActivity"/>
+        </activity>
     </application>
 
 </manifest>
