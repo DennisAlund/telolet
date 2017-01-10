@@ -50,6 +50,14 @@
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_directions_bus_black_128dp"/>
 
+        <service
+            android:name=".services.UserIntentService"
+            android:exported="false">
+        </service>
+        <service
+            android:name=".services.TeloletIntentService"
+            android:exported="false">
+        </service>
     </application>
 
 </manifest>

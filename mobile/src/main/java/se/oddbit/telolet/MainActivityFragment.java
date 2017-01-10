@@ -20,22 +20,20 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import se.oddbit.telolet.adapters.UserProfileRecyclerAdapter;
+import se.oddbit.telolet.adapters.FirebaseUserRecyclerAdapter;
 import se.oddbit.telolet.models.User;
 
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USERS;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_LOCATIONS;
+import static se.oddbit.telolet.util.Constants.Database.USERS;
 
 /**
  * A placeholder fragment containing a simple view.
  */
-public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthStateListener,  ValueEventListener {
+public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthStateListener, ValueEventListener {
     private static final String LOG_TAG = MainActivityFragment.class.getSimpleName();
 
     private RecyclerView mMemberList;
-    private UserProfileRecyclerAdapter mRecyclerAdapter;
-    private DatabaseReference mUserDatabaseRef;
-    private User mUser;
+    private DatabaseReference mCurrentUserDatabaseRef;
+    private User mCurrentUser;
 
     public MainActivityFragment() {
     }
@@ -91,13 +89,14 @@ public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthS
             return;
         }
 
-        mUser = snapshot.getValue(User.class);
+        mCurrentUser = snapshot.getValue(User.class);
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onDataChange: setting current user: " + mCurrentUser);
         updateAdapter();
     }
 
     @Override
     public void onCancelled(final DatabaseError error) {
-        FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Database error: " + error.getMessage());
+        FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "PATH error: " + error.getMessage());
     }
 
     private void startLocationListener() {
@@ -108,38 +107,33 @@ public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthS
         }
 
         final String uid = firebaseUser.getUid();
-        if (mUserDatabaseRef == null) {
-            mUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USERS).child(uid);
+        if (mCurrentUserDatabaseRef == null) {
+            mCurrentUserDatabaseRef = FirebaseDatabase.getInstance().getReference(USERS).child(uid);
         }
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startLocationListener: starting to listen for user info: " + uid);
-        mUserDatabaseRef.addValueEventListener(this);
+        mCurrentUserDatabaseRef.addValueEventListener(this);
     }
 
     private void stopLocationListener() {
-        if (mUserDatabaseRef == null) {
+        if (mCurrentUserDatabaseRef == null) {
             return;
         }
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopLocationListener");
-        mUserDatabaseRef.removeEventListener(this);
+        mCurrentUserDatabaseRef.removeEventListener(this);
     }
 
     public void updateAdapter() {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("updateAdapter: %s", mUser));
-        if (mUser == null) {
+        if (mCurrentUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateAdapter: NO CURRENT USER");
             return;
         }
 
-        final String olcBox = mUser.getCurrentLocation();
-
-        if (olcBox == null || olcBox.isEmpty()) {
+        if (mCurrentUser.getLocation() == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateAdapter: NO CURRENT LOCATION");
             return;
         }
 
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateAdapter: " + olcBox);
-        final DatabaseReference ref = FirebaseDatabase.getInstance().getReference(USER_LOCATIONS).child(olcBox);
-        mRecyclerAdapter = new UserProfileRecyclerAdapter(getActivity(), mUser, ref);
-        mMemberList.setAdapter(mRecyclerAdapter);
+        mMemberList.setAdapter(new FirebaseUserRecyclerAdapter(getContext(), mCurrentUser));
     }
 }

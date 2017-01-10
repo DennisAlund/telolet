@@ -2,7 +2,6 @@ package se.oddbit.telolet.services;
 
 import android.Manifest;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -23,24 +22,20 @@ import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.util.OpenLocationCode;
 
 import static se.oddbit.telolet.util.Constants.Analytics.Events.LOCATION;
 import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USERS;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USER_LOCATIONS;
+import static se.oddbit.telolet.util.Constants.Database.USERS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.FASTEST_LOCATION_UPDATE_INTERVAL;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_INTERVAL;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_THRESHOLD_METERS;
 
 public class LocationService extends Service implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -84,9 +79,9 @@ public class LocationService extends Service implements
             @Override
             public void onComplete(@NonNull final Task<Void> task) {
                 if (!task.isSuccessful()) {
-                    FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch Firebase remote config. Will go with defaults");
+                    FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch PATH remote config. Will go with defaults");
                 } else {
-                    FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched Firebase remote configuration");
+                    FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched PATH remote configuration");
                     restartLocationUpdates();
                 }
             }
@@ -134,13 +129,22 @@ public class LocationService extends Service implements
         if (newLocation.equals(mCurrentLocation)) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
                     String.format("onLocationChanged: Location notification (still at %s)", mCurrentLocation.getCode()));
-            return;
         }
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
                 String.format("onLocationChanged: Location updated (%s => %s)", mCurrentLocation.getCode(), newLocation.getCode()));
         mCurrentLocation = newLocation;
         saveCurrentLocation();
+        
+        final Bundle analyticsBundle = new Bundle();
+        // The length 11 is for full length OLC that are actually 10 value characters
+        for (int boxSize : new int[]{4, 6, 8, 11}) {
+            final String olcBox = newLocation.getCode().substring(0, boxSize);
+            // Put in location data for the box size.
+            analyticsBundle.putString(OLC + (boxSize == 11 ? 10 : boxSize), olcBox);
+        }
+
+        FirebaseAnalytics.getInstance(this).logEvent(LOCATION, analyticsBundle);
     }
 
     private void restartLocationUpdates() {
@@ -170,9 +174,9 @@ public class LocationService extends Service implements
         mRequestingLocationUpdates = true;
 
         final LocationRequest locationRequest = new LocationRequest();
-        final float thresholdMeters = (float) mRemoteConfig.getDouble("LOCATION_UPDATES_THRESHOLD_METERS");
-        final long updatesInterval = mRemoteConfig.getLong("LOCATION_UPDATES_INTERVAL");
-        final long fastestUpdatesInterval = mRemoteConfig.getLong("FASTEST_LOCATION_UPDATE_INTERVAL");
+        final float thresholdMeters = (float) mRemoteConfig.getDouble(LOCATION_UPDATES_THRESHOLD_METERS);
+        final long updatesInterval = mRemoteConfig.getLong(LOCATION_UPDATES_INTERVAL);
+        final long fastestUpdatesInterval = mRemoteConfig.getLong(FASTEST_LOCATION_UPDATE_INTERVAL);
 
         FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format(Locale.getDefault(),
                 "Starting location updates with a threshold of %.2f meters or about %d seconds interval (no faster than %d seconds)",
@@ -216,78 +220,15 @@ public class LocationService extends Service implements
 
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveCurrentLocation: Firebase user not yet set. Can't save.");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveCurrentLocation: PATH user not yet set. Can't save.");
             return;
         }
 
-        final String uid = firebaseUser.getUid();
-        final DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference(USERS).child(uid);
-        databaseReference.addListenerForSingleValueEvent(new UpdateUserLocationDataListener(this, uid, mCurrentLocation.getCode()));
-    }
-
-
-    private static class UpdateUserLocationDataListener implements ValueEventListener {
-        private static final String LOG_TAG = UpdateUserLocationDataListener.class.getSimpleName();
-        final Context mContext;
-        private final String mUid;
-        private final String mNewLocation;
-
-
-        UpdateUserLocationDataListener(final Context context, final String uid, final String newLocation) {
-            mContext = context;
-            mUid = uid;
-            mNewLocation = newLocation;
-        }
-
-        @Override
-        public void onDataChange(final DataSnapshot snapshot) {
-            if (!snapshot.exists()) {
-                FirebaseCrash.report(new IllegalStateException(String.format("No existing user profiles etc with uid: %s", mUid)));
-                return;
-            }
-
-            final User user = snapshot.getValue(User.class);
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onDataChange: %s", user));
-
-            String lastKnownLocation = user.getCurrentLocation();
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Saving new locations (%s => %s)", lastKnownLocation, mNewLocation));
-
-            if (lastKnownLocation == null || lastKnownLocation.isEmpty()) {
-                // Use a default string of equal length as a full OLC (to not break the substring op below)
-                lastKnownLocation = "-----------";
-            }
-
-
-            final Map<String, Object> databaseUpdates = new HashMap<>();
-            final Bundle analyticsBundle = new Bundle();
-
-            // The length 11 is for full length OLC that are actually 10 value characters
-            for (int boxSize : new int[]{4, 6, 8, 11}) {
-                final String oldOlcBox = lastKnownLocation.substring(0, boxSize);
-                final String newOlcBox = mNewLocation.substring(0, boxSize);
-
-                // Put in location data for the box size.
-                analyticsBundle.putString(OLC + (boxSize == 11 ? 10 : boxSize), newOlcBox);
-
-                // Remove all previously known location box appearances
-                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, oldOlcBox, user.getUid()), null);
-
-                // Add user to new location boxes, this might put back a value that was just nulled above if the substring is the same
-                databaseUpdates.put(String.format("/%s/%s/%s", USER_LOCATIONS, newOlcBox, user.getUid()), user.getProfile());
-            }
-
-            // Update user location with full accuracy
-            user.setCurrentLocation(mNewLocation);
-            databaseUpdates.put(String.format("/%s/%s", USERS, user.getUid()), user);
-
-            FirebaseDatabase.getInstance().getReference().updateChildren(databaseUpdates);
-            FirebaseAnalytics.getInstance(mContext).logEvent(LOCATION, analyticsBundle);
-        }
-
-        @Override
-        public void onCancelled(final DatabaseError error) {
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, String.format("Error fetching user profile data: %s", error.getMessage()));
-
-        }
+        FirebaseDatabase
+                .getInstance()
+                .getReference(USERS)
+                .child(firebaseUser.getUid())
+                .child(User.ATTR_LOCATION)
+                .setValue(mCurrentLocation.getCode());
     }
 }

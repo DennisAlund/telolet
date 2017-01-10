@@ -1,48 +1,71 @@
-path /users/{user_id} is User {
-    read() { isCurrentUser(user_id) }
-    write() { isCurrentUser(user_id) }
-    validate() { user_id == this.requesterUid }
-}
+path /users {
+    read() { isSignedIn() }
+    index() { [ "location"] }
 
-path /userLocations/{olc} {
-    read() { prior(this[auth.requesterUid]) != null }
-    /{user_id} is UserProfile {
+    path /{user_id} is User {
         write() { isCurrentUser(user_id) }
+        validate() { user_id == this.uid }
     }
 }
 
-path /telolets/{user_id} {
+
+path /teloletsSent/{user_id} {
     read() { isCurrentUser(user_id) }
+    index() { [ "repliedAt"] }
+
     path /{id} is Telolet {
         create() { isSignedIn() && auth.uid == this.requesterUid }
-        update() { isCurrentUser(user_id) }
+        update() { isCurrentUser(this.receiverUid) }
+        validate() { this.requesterUid == user_id }
+    }
+
+}
+
+path /teloletsReceived/{user_id} {
+    read() { isCurrentUser(user_id) }
+    index() { [ "repliedAt"] }
+
+    path /{id} is Telolet {
+        create() { isSignedIn() && auth.uid == this.requesterUid }
+        update() { auth.uid == this.receiverUid }
+        validate() { this.receiverUid == user_id }
     }
 }
 
 type User {
-    requesterUid: String,
-    requestLocation: String | Null,
-    profile: UserProfile
-
-    validate() { this.requesterUid == this.profile.requesterUid }
-}
-
-type UserProfile {
-    requesterUid: String,
-    image: String | Null,
+    uid: String,
+    location: String | Null,
+    fcmToken: String | Null,
+    image: String,
     handle: String,
     color: String
 }
 
 type Telolet {
-    requesterUid: String,
-    receiverUid: String,
-    requestLocation: String,
-    requestedAt: Number,
-    repliedAt: Number | Null,
+    requesterUid: Immutable<String>,
+    receiverUid: Immutable<String>,
+    requestLocation: Immutable<String>,
+    requestedAt: Immutable<CurrentTimestamp>,
+    repliedAt: Immutable<CurrentTimestamp> | Null,
 
-    validate() { repliedAt == null || repliedAt > requestedAt }
+    validate() {
+        (this.repliedAt == null || this.repliedAt > this.requestedAt) &&
+        (this.repliedAt == null || auth.uid == this.receiverUid)
+     }
+}
+
+type Immutable<T> extends T {
+  validate() { prior(this) == null || prior(this) == this }
+}
+
+type TimeStamp extends Number {
+  validate() { this >= 0 }
+}
+
+type CurrentTimestamp extends TimeStamp {
+  validate() { this === now }
 }
 
 isSignedIn() { auth !== null }
-isCurrentUser(requesterUid) { isSignedIn() && auth.requesterUid === requesterUid }
+isCurrentUser(uid) { isSignedIn() && auth.uid == uid }
+isInitialValue(value, init) { value === (prior(value) === null ? init : prior(value)) }

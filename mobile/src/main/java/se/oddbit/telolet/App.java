@@ -22,7 +22,7 @@ public class App extends Application {
         super.onCreate();
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onCreate");
 
-        // Database
+        // PATH
         FirebaseDatabase.getInstance().setPersistenceEnabled(true);
         if (BuildConfig.DEBUG) {
             FirebaseDatabase.getInstance().setLogLevel(Logger.Level.DEBUG);
@@ -39,9 +39,9 @@ public class App extends Application {
             @Override
             public void onComplete(@NonNull final Task<Void> task) {
                 if (!task.isSuccessful()) {
-                    FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch Firebase remote config. Will go with defaults");
+                    FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch PATH remote config. Will go with defaults");
                 } else {
-                    FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched Firebase remote configuration");
+                    FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched PATH remote configuration");
                     remoteConfig.activateFetched();
                 }
             }

@@ -34,11 +34,13 @@ import java.util.Arrays;
 import java.util.List;
 
 import se.oddbit.telolet.models.User;
+import se.oddbit.telolet.services.CloudMessagingInstanceIdService;
+import se.oddbit.telolet.services.CloudMessagingService;
 import se.oddbit.telolet.services.LocationService;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static se.oddbit.telolet.R.string.progress_loading;
-import static se.oddbit.telolet.util.Constants.Firebase.Database.USERS;
+import static se.oddbit.telolet.util.Constants.Database.USERS;
 
 public class MainActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener {
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
@@ -65,6 +67,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         mCurrentUserListener = new CurrentUserListener(this);
 
         startSignInProcess();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting all services necessary for the app to run.");
+        startService(new Intent(this, CloudMessagingInstanceIdService.class));
+        startService(new Intent(this, CloudMessagingService.class));
+        startService(new Intent(this, LocationService.class));
+
     }
 
     @Override
@@ -98,10 +105,10 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
                     @Override
                     public void onComplete(@NonNull final Task<Void> task) {
                         if (task.isSuccessful()) {
-                            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched Firebase remote configuration");
+                            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Successfully fetched PATH remote configuration");
                             remoteConfig.activateFetched();
                         } else {
-                            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch Firebase remote config. Will go with defaults");
+                            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Could not fetch PATH remote config. Will go with defaults");
                         }
                     }
                 });
@@ -132,16 +139,16 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
         switch (resultCode) {
             case RESULT_OK:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Finished Firebase UI Auth Process Successfully");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Finished PATH UI Auth Process Successfully");
                 break;
 
             case RESULT_CANCELED:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Cancelled Firebase UI Auth Process");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Cancelled PATH UI Auth Process");
                 startSignInProcess();
                 break;
 
             case ResultCodes.RESULT_NO_NETWORK:
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Failed Firebase UI Auth Process: no network");
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: Failed PATH UI Auth Process: no network");
                 Snackbar.make(mRootView, R.string.no_internet_connection, Snackbar.LENGTH_INDEFINITE).show();
                 startSignInProcess();
                 break;
@@ -202,7 +209,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
 
     private void startSignInProcess() {
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Start Firebase UI Auth login process.");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Start PATH UI Auth login process.");
             final List<AuthUI.IdpConfig> providers = Arrays.asList(
                     new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build(),
                     new AuthUI.IdpConfig.Builder(AuthUI.FACEBOOK_PROVIDER).build());
@@ -211,7 +218,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
                     .createSignInIntentBuilder()
                     .setProviders(providers)
                     .setIsSmartLockEnabled(!BuildConfig.DEBUG)
-                    .setLogo(R.mipmap.ic_launcher)
+                    .setLogo(R.drawable.ic_launcher_web)
                     .setTheme(R.style.AppTheme)
                     .build();
 
@@ -243,6 +250,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         }
 
         public void start() {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting current user data listener");
             final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             if (firebaseUser == null) {
                 stop();
@@ -257,6 +265,7 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         }
 
         public void stop() {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Stopping current user data listener");
             if (mFirebaseUserDatabaseRef == null) {
                 return;
             }
@@ -266,21 +275,23 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         @Override
         public void onDataChange(final DataSnapshot snapshot) {
             if (!snapshot.exists()) {
-                mFirebaseUserDatabaseRef.setValue(new User(mContext, mUid));
+                final User user = User.createRandom(mContext, mUid);
+                FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Creating new user profile: " + user);
+                mFirebaseUserDatabaseRef.setValue(user);
                 return;
             }
 
             final User user = snapshot.getValue(User.class);
-            setTitle(user.getProfile().getHandle());
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Got user profile from database: " + user);
+            setTitle(user.getHandle());
 
             stop();
-            startService(new Intent(mContext, LocationService.class));
             hideProgressDialog();
         }
 
         @Override
         public void onCancelled(final DatabaseError error) {
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Database error: " + error.getMessage());
+            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "PATH error: " + error.getMessage());
             hideProgressDialog();
         }
     }
