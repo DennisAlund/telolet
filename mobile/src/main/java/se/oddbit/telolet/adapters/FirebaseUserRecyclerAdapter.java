@@ -129,7 +129,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<FirebaseUs
 
     @Override
     public void onCancelled(final DatabaseError error) {
-
+        FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Error fetching users: " + error.getMessage());
     }
 
     private synchronized void addUser(final User user) {
