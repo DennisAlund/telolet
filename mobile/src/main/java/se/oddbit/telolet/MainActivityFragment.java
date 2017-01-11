@@ -32,7 +32,8 @@ import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
 /**
  * A placeholder fragment containing a simple view.
  */
-public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthStateListener, ValueEventListener, FirebaseUserRecyclerAdapter.EmptyStateListener {
+public class MainActivityFragment extends Fragment
+        implements FirebaseAuth.AuthStateListener, ValueEventListener, FirebaseUserRecyclerAdapter.EmptyStateListener {
     private static final String LOG_TAG = MainActivityFragment.class.getSimpleName();
 
     private View mEmptyStateView;
@@ -40,6 +41,11 @@ public class MainActivityFragment extends Fragment implements FirebaseAuth.AuthS
     private FirebaseUserRecyclerAdapter mRecyclerAdapter;
 
     public MainActivityFragment() {
+    }
+
+    @Override
+    public void onCreate(@Nullable final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
     }
 
     @Override

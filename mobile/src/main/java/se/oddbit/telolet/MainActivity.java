@@ -17,6 +17,12 @@ import android.view.View;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.ui.ResultCodes;
+import com.google.android.gms.appinvite.AppInvite;
+import com.google.android.gms.appinvite.AppInviteInvitationResult;
+import com.google.android.gms.appinvite.AppInviteReferral;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -42,7 +48,8 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static se.oddbit.telolet.R.string.progress_loading;
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 
-public class MainActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener {
+public class MainActivity extends AppCompatActivity
+        implements FirebaseAuth.AuthStateListener, GoogleApiClient.OnConnectionFailedListener, ResultCallback<AppInviteInvitationResult> {
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
     private static final int RC_SIGN_IN = 42;
     private static final int RC_LOCATION_PERMISSIONS = 0x10c;
@@ -64,14 +71,20 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        // First make sure we listen to user change objects, then try to login and fetch them
         mCurrentUserListener = new CurrentUserListener(this);
-
         startSignInProcess();
+
+        final GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(AppInvite.API)
+                .enableAutoManage(this, this)
+                .build();
+        AppInvite.AppInviteApi.getInvitation(googleApiClient, this, true).setResultCallback(this);
+
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting all services necessary for the app to run.");
         startService(new Intent(this, CloudMessagingInstanceIdService.class));
         startService(new Intent(this, CloudMessagingService.class));
         startService(new Intent(this, LocationService.class));
-
     }
 
     @Override
@@ -199,6 +212,18 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
+    @Override
+    public void onResult(@NonNull final AppInviteInvitationResult result) {
+        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Open app invitation: " + result.getStatus());
+
+        if (result.getStatus().isSuccess()) {
+            final Intent intent = result.getInvitationIntent();
+            final String deepLink = AppInviteReferral.getDeepLink(intent);
+            final String invitationId = AppInviteReferral.getInvitationId(intent);
+
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format("Open app invitation (id: %s): %s", invitationId, deepLink));
+        }
+    }
 
     private void showProgressDialog() {
         if (mProgressDialog == null) {
@@ -247,6 +272,11 @@ public class MainActivity extends AppCompatActivity implements FirebaseAuth.Auth
         if (!hasPermissions) {
             ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, RC_LOCATION_PERMISSIONS);
         }
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull final ConnectionResult connectionResult) {
+
     }
 
     private class CurrentUserListener implements ValueEventListener {

@@ -49,37 +49,41 @@ public class InviteFriendsActivity extends AppCompatActivity implements View.OnC
             bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, LOG_TAG);
             FirebaseAnalytics.getInstance(this).logEvent(FRIEND_INVITE_SENT, bundle);
 
+            final Map<String, String> referralParams = new HashMap<>();
+
+            AppInviteInvitation.IntentBuilder builder;
             if (FirebaseRemoteConfig.getInstance().getString(TEST_GROUP).equals("A")) {
-                startActivityForResult(getTypeAIntent(), FRIEND_INVITATION_REQUEST);
+                referralParams.put(TEST_GROUP, "A");
+                builder = new AppInviteInvitation
+                        .IntentBuilder(getString(R.string.friend_invitation_title_v1))
+                        .setMessage(getString(R.string.friend_invitation_message_v1))
+                        .setCallToActionText(getString(R.string.friend_invitation_cta_v1));
             } else {
-                startActivityForResult(getTypeBIntent(), FRIEND_INVITATION_REQUEST);
+                referralParams.put(TEST_GROUP, "B");
+                builder = new AppInviteInvitation
+                        .IntentBuilder(getString(R.string.friend_invitation_title_v2))
+                        .setMessage(getString(R.string.friend_invitation_message_v2))
+                        .setCallToActionText(getString(R.string.friend_invitation_cta_v2));
             }
+            final Intent invitationIntent = builder.setAdditionalReferralParameters(referralParams)
+                    .setDeepLink(Uri.parse(getString(R.string.invitation_deep_link)))
+                    .setCustomImage(Uri.parse(getString(R.string.friend_invitation_custom_image)))
+                    .build();
+
+            startActivityForResult(invitationIntent, FRIEND_INVITATION_REQUEST);
         }
     }
 
-    private Intent getTypeAIntent() {
-        final Map<String, String> referralParams = new HashMap<>();
-        referralParams.put(TEST_GROUP, "A");
-        return new AppInviteInvitation
-                .IntentBuilder(getString(R.string.friend_invitation_title_v1))
-                .setMessage(getString(R.string.friend_invitation_message_v1))
-                .setCallToActionText(getString(R.string.friend_invitation_cta_v1))
-                .setAdditionalReferralParameters(referralParams)
-                .setDeepLink(Uri.parse(getString(R.string.invitation_deep_link)))
-                .setCustomImage(Uri.parse(getString(R.string.friend_invitation_custom_image)))
-                .build();
-    }
-
-    private Intent getTypeBIntent() {
-        final Map<String, String> referralParams = new HashMap<>();
-        referralParams.put(TEST_GROUP, "A");
-        return new AppInviteInvitation
-                .IntentBuilder(getString(R.string.friend_invitation_title_v2))
-                .setMessage(getString(R.string.friend_invitation_message_v2))
-                .setCallToActionText(getString(R.string.friend_invitation_cta_v2))
-                .setAdditionalReferralParameters(referralParams)
-                .setDeepLink(Uri.parse(getString(R.string.invitation_deep_link)))
-                .setCustomImage(Uri.parse(getString(R.string.friend_invitation_custom_image)))
-                .build();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onActivityResult: requestCode=%s, resultCode=%s",requestCode, resultCode));
+        if (requestCode == FRIEND_INVITATION_REQUEST) {
+            if (resultCode == RESULT_OK) {
+                for (String invitationId : AppInviteInvitation.getInvitationIds(resultCode, data)) {
+                    FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onActivityResult: sent invitation " + invitationId);
+                }
+            }
+        }
     }
 }
