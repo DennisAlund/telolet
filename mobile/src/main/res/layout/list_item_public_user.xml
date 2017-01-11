@@ -2,38 +2,38 @@
 <android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
                                     xmlns:app="http://schemas.android.com/apk/res-auto"
                                     xmlns:card_view="http://schemas.android.com/tools"
+                                    android:id="@+id/public_user_card"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:minHeight="?android:attr/listPreferredItemHeight"
                                     android:layout_marginBottom="16dp"
+                                    android:minHeight="?android:attr/listPreferredItemHeight"
                                     android:padding="8dp"
                                     card_view:cardCornerRadius="8dp"
-                                    card_view:cardUseCompatPadding="true"
-                                    android:id="@+id/public_user_card">
+                                    card_view:cardUseCompatPadding="true">
 
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                  xmlns:app="http://schemas.android.com/apk/res-auto"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:orientation="horizontal">
+    <LinearLayout
+        android:id="@+id/user_content_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <ImageView
             android:id="@+id/public_user_image"
             android:layout_width="128dp"
             android:layout_height="128dp"
             android:layout_gravity="start"
+            android:adjustViewBounds="false"
             android:contentDescription="@string/public_user_image_content_description"
+            android:cropToPadding="false"
             android:padding="0dp"
             android:scaleType="centerCrop"
-            app:srcCompat="@drawable/ic_directions_bus_black_24dp"
-            android:adjustViewBounds="false"
-            android:cropToPadding="false"/>
+            app:srcCompat="@drawable/ic_directions_bus_black_24dp"/>
 
         <TextView
             android:id="@+id/public_user_handle"
-            android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_weight="1"
             android:gravity="center"
             android:text="@string/placeholder_public_user_handle"
             android:textAllCaps="true"

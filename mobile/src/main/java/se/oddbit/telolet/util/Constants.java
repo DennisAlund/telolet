@@ -31,6 +31,7 @@ public final class Constants {
 
     public static final class RemoteConfig {
         public static final String TEST_GROUP = "TEST_GROUP";
+        public static final String LIST_AD_FREQUENCY = "LIST_AD_FREQUENCY";
         public static final String OLC_BOX_SIZE = "OLC_BOX_SIZE";
         public static final String LOCATION_UPDATES_THRESHOLD_METERS = "LOCATION_UPDATES_THRESHOLD_METERS";
         public static final String LOCATION_UPDATES_INTERVAL = "LOCATION_UPDATES_INTERVAL";

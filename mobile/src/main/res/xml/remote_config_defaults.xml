@@ -20,5 +20,9 @@
         <key>TEST_GROUP</key>
         <value>A</value>
     </entry>
+    <entry>
+        <key>LIST_AD_FREQUENCY</key>
+        <value>3</value>
+    </entry>
 </defaultsMap>
 

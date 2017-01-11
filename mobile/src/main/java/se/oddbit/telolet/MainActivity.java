@@ -17,6 +17,7 @@ import android.view.View;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.ui.ResultCodes;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.appinvite.AppInvite;
 import com.google.android.gms.appinvite.AppInviteInvitationResult;
 import com.google.android.gms.appinvite.AppInviteReferral;
@@ -80,6 +81,7 @@ public class MainActivity extends AppCompatActivity
                 .enableAutoManage(this, this)
                 .build();
         AppInvite.AppInviteApi.getInvitation(googleApiClient, this, true).setResultCallback(this);
+        MobileAds.initialize(getApplicationContext(), getString(R.string.banner_ad_unit_id));
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting all services necessary for the app to run.");
         startService(new Intent(this, CloudMessagingInstanceIdService.class));

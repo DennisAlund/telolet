@@ -33,25 +33,22 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     private ImageView mCurrentUserImageView;
     private TextView mCurrentUserHandleView;
     private CardView mCardView;
-    private View mRootView;
     private User mUser;
 
     public UserViewHolder(final Context context, final View rootItemView) {
         super(rootItemView);
         mContext = context;
-        mRootView = rootItemView;
         mCurrentUserImageView = (ImageView) rootItemView.findViewById(R.id.public_user_image);
         mCurrentUserHandleView = (TextView) rootItemView.findViewById(R.id.public_user_handle);
         mCardView = (CardView) rootItemView.findViewById(R.id.public_user_card);
-        mCardView.setOnClickListener(this);
     }
 
     void bindToMember(final User user) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Binding view holder to: %s", user));
         mUser = user;
-        mRootView.setVisibility(View.VISIBLE);
         mCardView.setCardBackgroundColor(Color.parseColor(user.getColor()));
         mCurrentUserHandleView.setText(user.getHandle());
+        mCardView.setOnClickListener(this);
     }
 
     @Override
@@ -63,6 +60,11 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     private void createNewTeloletRequest(final User user) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "createNewTeloletRequest: " + user);
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "User was logged out while listing users... strange");
+            return;
+        }
+
         final Telolet telolet = new Telolet();
         telolet.setRequesterUid(firebaseUser.getUid());
         telolet.setReceiverUid(user.getUid());
