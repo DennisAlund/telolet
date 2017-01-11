@@ -61,7 +61,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         switch (viewType) {
             case VIEW_TYPE_AD:
                 final View adListItemRootView = inflater.inflate(R.layout.list_item_ad, parent, false);
-                return new AdViewHolder(adListItemRootView);
+                return new AdViewHolder(mContext, parent, adListItemRootView);
 
             default:
                 final View userListItemRootView = inflater.inflate(R.layout.list_item_public_user, parent, false);
@@ -79,7 +79,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onBindViewHolder: type=%s, pos=%s", viewHolder.getItemViewType(), position));
 
         if (viewHolder.getItemViewType() == VIEW_TYPE_AD) {
-            ((AdViewHolder) viewHolder).makeAd();
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Putting in an advertisement at position: " + position);
             return;
         }
 
@@ -145,7 +145,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
             mQuery.removeEventListener(this);
             clear();
         }
-
 
         mQuery = query;
         mQuery.addChildEventListener(this);

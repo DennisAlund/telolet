@@ -2,7 +2,7 @@
 <resources>
     <string name="facebook_application_id" translatable="false">1721768231470762</string>
     <string name="facebook_login_protocol_scheme" translatable="false">fb1721768231470762</string>
-    <string name="banner_ad_unit_id">ca-app-pub-8888119398687492~3259488367</string>
+    <string name="banner_ad_unit_id">ca-app-pub-8888119398687492/4736221564</string>
     <string name="friend_invitation_custom_image" translatable="false">https://goo.gl/cRzu1l</string>
     <string name="invitation_deep_link" translatable="false">https://telolet-664db.firebaseapp.com/invitation</string>
 </resources>
