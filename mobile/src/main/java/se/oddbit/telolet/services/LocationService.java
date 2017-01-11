@@ -32,10 +32,13 @@ import se.oddbit.telolet.util.OpenLocationCode;
 
 import static se.oddbit.telolet.util.Constants.Analytics.Events.LOCATION;
 import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
+import static se.oddbit.telolet.util.Constants.Analytics.UserProperty.GAME_LEVEL;
+import static se.oddbit.telolet.util.Constants.Analytics.UserProperty.USER_LOCATION;
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.FASTEST_LOCATION_UPDATE_INTERVAL;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_INTERVAL;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_THRESHOLD_METERS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
 
 public class LocationService extends Service implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -135,7 +138,7 @@ public class LocationService extends Service implements
                 String.format("onLocationChanged: Location updated (%s => %s)", mCurrentLocation.getCode(), newLocation.getCode()));
         mCurrentLocation = newLocation;
         saveCurrentLocation();
-        
+
         final Bundle analyticsBundle = new Bundle();
         // The length 11 is for full length OLC that are actually 10 value characters
         for (int boxSize : new int[]{4, 6, 8, 11}) {
@@ -144,7 +147,11 @@ public class LocationService extends Service implements
             analyticsBundle.putString(OLC + (boxSize == 11 ? 10 : boxSize), olcBox);
         }
 
-        FirebaseAnalytics.getInstance(this).logEvent(LOCATION, analyticsBundle);
+        final Integer boxSize = Integer.valueOf(mRemoteConfig.getString(OLC_BOX_SIZE));
+        final FirebaseAnalytics analytics = FirebaseAnalytics.getInstance(this);
+        analytics.setUserProperty(GAME_LEVEL, boxSize.toString());
+        analytics.setUserProperty(USER_LOCATION, newLocation.getCode().substring(0, boxSize));
+        analytics.logEvent(LOCATION, analyticsBundle);
     }
 
     private void restartLocationUpdates() {
