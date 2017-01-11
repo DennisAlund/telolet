@@ -42,3 +42,4 @@ captures/
 .idea/
 
 rules.*.json
+google-services.json
