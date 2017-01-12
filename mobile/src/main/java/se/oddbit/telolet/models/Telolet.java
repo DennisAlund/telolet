@@ -4,10 +4,13 @@ import com.google.firebase.database.IgnoreExtraProperties;
 import com.google.firebase.database.ServerValue;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @IgnoreExtraProperties
 public class Telolet {
+    public static final String ATTR_REPLIED_AT = "repliedAt";
+
     private String mRequesterUid;
     private String mReceiverUid;
     private String mRequestLocation;
@@ -56,7 +59,9 @@ public class Telolet {
 
     @Override
     public String toString() {
-        return String.format("%s{req: %s, recv: , reqTS}", Telolet.class.getSimpleName(), mRequesterUid, mReceiverUid, mRequestedAt);
+        return String.format(Locale.getDefault(),
+                "%s{req: %s, recv: %s, reqTS: %d}",
+                Telolet.class.getSimpleName(), mRequesterUid, mReceiverUid, mRequestedAt);
     }
 
     public Map<String, Object> toNewRequestMap() {

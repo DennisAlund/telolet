@@ -19,19 +19,16 @@
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-            <!--
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
+
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
+
                 <data
-                    android:scheme="https"
                     android:host="telolet-664db.firebaseapp.com"
-                    android:pathPrefix="/invitation"/>
-            </intent-filter> -->
+                    android:pathPrefix="/invitation"
+                    android:scheme="https"/>
+            </intent-filter>
         </activity>
 
         <service
@@ -54,7 +51,6 @@
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
             </intent-filter>
-
         </service>
 
         <meta-data
@@ -69,6 +65,20 @@
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="se.oddbit.telolet.MainActivity"/>
+        </activity>
+
+        <service
+            android:name=".services.TeloletListenerService"
+            android:enabled="true"
+            android:exported="false">
+        </service>
+
+        <activity android:name=".LaunchActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
         </activity>
     </application>
 

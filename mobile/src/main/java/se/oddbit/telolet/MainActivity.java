@@ -61,6 +61,10 @@ public class MainActivity extends AppCompatActivity
     protected void onPause() {
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onPause");
         FirebaseAuth.getInstance().removeAuthStateListener(this);
+
+        // Start listening for telolet in the background
+        startService(new Intent(this, TeloletListenerService.class));
+
         super.onPause();
     }
 
@@ -68,7 +72,9 @@ public class MainActivity extends AppCompatActivity
     public void onResume() {
         super.onResume();
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onResume");
-        checkLocationPermissions();
+
+        // Stop background listening for requests/responses. Deal with them in the MainActivity
+        stopService(new Intent(this, TeloletListenerService.class));
         FirebaseAuth.getInstance().addAuthStateListener(this);
     }
 
