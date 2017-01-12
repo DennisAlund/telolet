@@ -138,6 +138,12 @@ public class MainActivityFragment extends Fragment
     public void onDataChange(final DataSnapshot snapshot) {
         final User currentUser = snapshot.getValue(User.class);
         final int boxSize = (int) FirebaseRemoteConfig.getInstance().getLong(OLC_BOX_SIZE);
+        if (currentUser.getLocation() == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
+                    "updateAdapter: User %s doesn't have any location yet. Waiting...", currentUser));
+            return;
+        }
+
         final String olcBox = currentUser.getLocation().substring(0, boxSize);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
                 "updateAdapter: Setting %s query to OLC box %s (size %d)", currentUser, olcBox, boxSize));
