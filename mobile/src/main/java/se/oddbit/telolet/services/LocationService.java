@@ -47,7 +47,6 @@ public class LocationService extends Service implements
 
     private boolean mRequestingLocationUpdates = false;
     private GoogleApiClient mGoogleApiClient;
-    private OpenLocationCode mCurrentLocation;
     FirebaseRemoteConfig mRemoteConfig;
 
     public LocationService() {
@@ -62,8 +61,10 @@ public class LocationService extends Service implements
 
     @Override
     public void onDestroy() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onDestroy");
         stopLocationUpdates();
         mGoogleApiClient = null;
+        saveLocation(null);
         super.onDestroy();
     }
 
@@ -103,12 +104,10 @@ public class LocationService extends Service implements
             return;
         }
 
-        if (mCurrentLocation == null) {
-            final Location lastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            mCurrentLocation = new OpenLocationCode(lastLocation.getLatitude(), lastLocation.getLongitude());
-            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: No current location. Using last known location: " + mCurrentLocation.getCode());
-            saveCurrentLocation();
-        }
+        final Location lastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        final OpenLocationCode olc = new OpenLocationCode(lastLocation.getLatitude(), lastLocation.getLongitude());
+        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: No current location. Using last known location: " + olc.getCode());
+        saveLocation(olc);
 
         startLocationUpdates();
     }
@@ -128,16 +127,8 @@ public class LocationService extends Service implements
     @Override
     public void onLocationChanged(final Location location) {
         final OpenLocationCode newLocation = new OpenLocationCode(location.getLatitude(), location.getLongitude());
-
-        if (newLocation.equals(mCurrentLocation)) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                    String.format("onLocationChanged: Location notification (still at %s)", mCurrentLocation.getCode()));
-        }
-
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                String.format("onLocationChanged: Location updated (%s => %s)", mCurrentLocation.getCode(), newLocation.getCode()));
-        mCurrentLocation = newLocation;
-        saveCurrentLocation();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onLocationChanged: Location updated: %s", newLocation.getCode()));
+        saveLocation(newLocation);
 
         final Bundle analyticsBundle = new Bundle();
         // The length 11 is for full length OLC that are actually 10 value characters
@@ -221,21 +212,16 @@ public class LocationService extends Service implements
     }
 
 
-    private void saveCurrentLocation() {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                String.format("saveCurrentLocation: %s", mCurrentLocation.getCode()));
-
+    private void saveLocation(final OpenLocationCode newLocation) {
+        final String locationCode = newLocation == null ? null : newLocation.getCode();
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveCurrentLocation: PATH user not yet set. Can't save.");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveLocation: PATH user not yet set. Can't save location=" + locationCode);
             return;
         }
 
-        FirebaseDatabase
-                .getInstance()
-                .getReference(USERS)
-                .child(firebaseUser.getUid())
-                .child(User.ATTR_LOCATION)
-                .setValue(mCurrentLocation.getCode());
+        final String uid = firebaseUser.getUid();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: olc=%s, user=%s", locationCode, uid));
+        FirebaseDatabase.getInstance().getReference(USERS).child(uid).child(User.ATTR_LOCATION).setValue(locationCode);
     }
 }
