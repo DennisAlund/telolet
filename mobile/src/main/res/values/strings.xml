@@ -20,4 +20,5 @@
     <string name="friend_invitation_title_v2">Invite fun friends</string>
     <string name="friend_invitation_message_v2">Om, Telolet, Om! Join me in this fun location based game!</string>
     <string name="friend_invitation_cta_v2">Join your friends!</string>
+    <string name="login_anonymous_button">Login anonymously</string>
 </resources>
