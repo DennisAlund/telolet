@@ -40,7 +40,7 @@ import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_INT
 import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_THRESHOLD_METERS;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
 
-public class LocationService extends Service implements
+public class LocationService extends Service implements FirebaseAuth.AuthStateListener,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private static final String LOG_TAG = LocationService.class.getSimpleName();
@@ -143,6 +143,15 @@ public class LocationService extends Service implements
         analytics.setUserProperty(GAME_LEVEL, boxSize.toString());
         analytics.setUserProperty(USER_LOCATION, newLocation.getCode().substring(0, boxSize));
         analytics.logEvent(LOCATION, analyticsBundle);
+    }
+
+    @Override
+    public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
+        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: firebaseUser=" + firebaseUser);
+        if (firebaseUser == null) {
+            stopSelf();
+        }
     }
 
     private void restartLocationUpdates() {
