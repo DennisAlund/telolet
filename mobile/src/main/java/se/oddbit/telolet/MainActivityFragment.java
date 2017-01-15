@@ -37,7 +37,7 @@ public class MainActivityFragment extends Fragment
     private static final String LOG_TAG = MainActivityFragment.class.getSimpleName();
 
     private View mEmptyStateView;
-    private RecyclerView mMemberList;
+    private RecyclerView mUserList;
     private FirebaseUserRecyclerAdapter mRecyclerAdapter;
     private TeloletListener mTeloletListener;
 
@@ -57,7 +57,7 @@ public class MainActivityFragment extends Fragment
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-        mMemberList = (RecyclerView) rootView.findViewById(R.id.user_list);
+        mUserList = (RecyclerView) rootView.findViewById(R.id.user_list);
         mEmptyStateView = rootView.findViewById(R.id.on_empty_list_placeholder_view);
 
         final Button button = (Button) mEmptyStateView.findViewById(R.id.invite_friends_button);
@@ -70,9 +70,9 @@ public class MainActivityFragment extends Fragment
     public void onActivityCreated(@Nullable final Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getActivity());
-        mMemberList.setLayoutManager(linearLayoutManager);
+        mUserList.setLayoutManager(linearLayoutManager);
         mRecyclerAdapter = new FirebaseUserRecyclerAdapter(getContext());
-        mMemberList.setAdapter(mRecyclerAdapter);
+        mUserList.setAdapter(mRecyclerAdapter);
     }
 
     @Override
@@ -108,6 +108,7 @@ public class MainActivityFragment extends Fragment
             mRecyclerAdapter.setSentTelolet(telolet);
         } else {
             mRecyclerAdapter.setReceivedTeloletRequest(telolet);
+            mUserList.smoothScrollToPosition(0);
         }
     }
 
@@ -166,13 +167,13 @@ public class MainActivityFragment extends Fragment
 
     @Override
     public void onEmptyState() {
-        mMemberList.setVisibility(View.GONE);
+        mUserList.setVisibility(View.GONE);
         mEmptyStateView.setVisibility(View.VISIBLE);
     }
 
     @Override
     public void onNonEmptyState() {
-        mMemberList.setVisibility(View.VISIBLE);
+        mUserList.setVisibility(View.VISIBLE);
         mEmptyStateView.setVisibility(View.GONE);
     }
 }

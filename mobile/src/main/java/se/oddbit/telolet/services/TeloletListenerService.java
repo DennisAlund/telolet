@@ -1,22 +1,34 @@
 package se.oddbit.telolet.services;
 
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import se.oddbit.telolet.MainActivity;
+import se.oddbit.telolet.R;
 import se.oddbit.telolet.TeloletListener;
 import se.oddbit.telolet.models.Telolet;
 
 public class TeloletListenerService extends Service implements FirebaseAuth.AuthStateListener, TeloletListener.OnTeloletEvent {
     private static final String LOG_TAG = TeloletListenerService.class.getSimpleName();
+    private static final int REQUEST_NOTIFICATION_ID = 1;
 
     private TeloletListener mTeloletListener;
+    private NotificationManager mNotificationManager;
+    private final List<Telolet> mTeloletList = new ArrayList<>();
 
     public TeloletListenerService() {
     }
@@ -32,6 +44,8 @@ public class TeloletListenerService extends Service implements FirebaseAuth.Auth
         super.onCreate();
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onCreate");
         createTeloletListener();
+        mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
     }
 
     @Override
@@ -58,8 +72,18 @@ public class TeloletListenerService extends Service implements FirebaseAuth.Auth
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletRequest: " + telolet);
         FirebaseCrash.logcat(Log.WARN, LOG_TAG, "should show notification: " + telolet);
 
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        assert firebaseUser != null;
+        mTeloletList.add(telolet);
+
+        final Intent intent = new Intent(this, MainActivity.class);
+        final PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        final NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setContentTitle(getString(R.string.om_telolet_om))
+                .setContentText(getString(R.string.notification_pending_telolet_requests))
+                .setSmallIcon(R.drawable.ic_directions_bus_white_24dp)
+                .setNumber(mTeloletList.size())
+                .setContentIntent(pendingIntent);
+
+        mNotificationManager.notify(REQUEST_NOTIFICATION_ID, builder.build());
     }
 
     @Override

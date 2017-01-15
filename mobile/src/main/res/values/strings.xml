@@ -22,4 +22,5 @@
     <string name="friend_invitation_cta_v2">Join your friends!</string>
     <string name="login_anonymous_button">Login anonymously</string>
     <string name="om_telolet_om">Om, Telolet, Om!</string>
+    <string name="notification_pending_telolet_requests">People want you to honk the horn!!!</string>
 </resources>
