@@ -22,9 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Queue;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.User;
@@ -49,7 +46,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
     private final Context mContext;
     private final Object mListItemsLock = new Object();
     private final List<String> mItemIds = new ArrayList<>();
-    private final Queue<String> mAdIds = new ConcurrentLinkedQueue<>();
     private final Map<String, User> mUserMap = new HashMap<>();
     private final Map<String, Telolet> mSentTeloletsMap = new HashMap<>();
     private final Map<String, Telolet> mReceivedTeloletsMap = new HashMap<>();
@@ -76,7 +72,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
 
     @Override
     public int getItemViewType(final int position) {
-        return mItemIds.get(position).startsWith(AD_PREFIX) ? VIEW_TYPE_AD : VIEW_TYPE_DEFAULT;
+        return isAdPosition(position) ? VIEW_TYPE_AD : VIEW_TYPE_DEFAULT;
     }
 
     @Override
@@ -89,7 +85,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         }
 
         final UserViewHolder userViewHolder = (UserViewHolder) viewHolder;
-        final String listItemId = mItemIds.get(position);
+        final String listItemId = mItemIds.get(getOffsetPosition(position));
         final User user = mUserMap.get(listItemId);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onBindViewHolder %s at position %d", user, position));
 
@@ -104,7 +100,11 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
 
     @Override
     public int getItemCount() {
-        return mItemIds.size();
+        if (mAdFrequency <= 0) {
+            return mItemIds.size();
+        }
+
+        return mItemIds.size() + mItemIds.size() / (mAdFrequency - 1);
     }
 
 
@@ -203,7 +203,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
 
     private void clear() {
         synchronized (mListItemsLock) {
-            mAdIds.clear();
             mItemIds.clear();
             mUserMap.clear();
             notifyDataSetChanged();
@@ -252,15 +251,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
                 }
             }
 
-            if (mItemIds.size() > 0 && (mItemIds.size() % mAdFrequency) == 0) {
-                // Put in an advertisement if the amount of list items has reached threshold
-                final String adId = AD_PREFIX + UUID.randomUUID().toString();
-                mAdIds.add(adId);
-                mItemIds.add(adId);
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                        String.format(Locale.getDefault(), "Adding ad '%s'. Now showing %d ads.", adId, mAdIds.size()));
-            }
-
             notifyDataSetChanged();
         }
     }
@@ -276,14 +266,18 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
                 }
             }
 
-            if (!mAdIds.isEmpty() && (mItemIds.size() % mAdFrequency) == 0) {
-                final String adToRemove = mAdIds.remove();
-                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                        String.format(Locale.getDefault(), "Removing ad '%s'. Now showing %d ads.", adToRemove, mAdIds.size()));
-                mItemIds.remove(adToRemove);
-            }
-
             notifyDataSetChanged();
         }
+    }
+
+    private boolean isAdPosition(final int position) {
+        return mAdFrequency > 0 && (position % mAdFrequency) == (mAdFrequency - 1);
+    }
+
+    private int getOffsetPosition(final int position) {
+        if (mAdFrequency <= 0) {
+            return position;
+        }
+        return position - position / mAdFrequency;
     }
 }
