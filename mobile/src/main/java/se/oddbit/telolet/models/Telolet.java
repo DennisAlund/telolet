@@ -1,5 +1,8 @@
 package se.oddbit.telolet.models;
 
+import android.support.annotation.NonNull;
+
+import com.google.firebase.database.Exclude;
 import com.google.firebase.database.IgnoreExtraProperties;
 import com.google.firebase.database.ServerValue;
 
@@ -9,13 +12,30 @@ import java.util.Map;
 
 @IgnoreExtraProperties
 public class Telolet {
-    public static final String ATTR_REPLIED_AT = "repliedAt";
+    public static final String ATTR_RESOLVED_AT = "resolvedAt";
 
+    private String mId;
     private String mRequesterUid;
     private String mReceiverUid;
     private String mRequestLocation;
+    private String mResolveLocation;
     private Long mRequestedAt;
-    private Long mRepliedAt;
+    private Long mResolvedAt;
+
+    public Telolet() {
+    }
+
+    public Telolet(final String id) {
+        mId = id;
+    }
+
+    public String getId() {
+        return mId;
+    }
+
+    public void setId(final String id) {
+        mId = id;
+    }
 
     public String getRequesterUid() {
         return mRequesterUid;
@@ -41,6 +61,14 @@ public class Telolet {
         mRequestLocation = requestLocation;
     }
 
+    public String getResolveLocation() {
+        return mResolveLocation;
+    }
+
+    public void setResolveLocation(final String resolveLocation) {
+        mResolveLocation = resolveLocation;
+    }
+
     public Long getRequestedAt() {
         return mRequestedAt;
     }
@@ -49,24 +77,53 @@ public class Telolet {
         mRequestedAt = requestedAt;
     }
 
-    public Long getRepliedAt() {
-        return mRepliedAt;
+    public Long getResolvedAt() {
+        return mResolvedAt;
     }
 
-    public void setRepliedAt(final Long repliedAt) {
-        mRepliedAt = repliedAt;
+    public void setResolvedAt(final Long resolvedAt) {
+        mResolvedAt = resolvedAt;
+    }
+
+    @Exclude
+    public boolean isPendingRequestFor(@NonNull final User user) {
+        return isPendingRequestFor(user.getUid());
+    }
+
+    @Exclude
+    public boolean isPendingRequestFor(@NonNull final String uid) {
+        return mResolvedAt == null && uid.equals(mReceiverUid);
+    }
+
+    @Exclude
+    public boolean isPendingRequestBy(@NonNull final String uid) {
+        return mResolvedAt == null && uid.equals(mRequesterUid);
+    }
+
+    @Exclude
+    public boolean isPendingRequestBy(@NonNull final User user) {
+        return isPendingRequestBy(user.getUid());
+    }
+
+    @Exclude
+    public boolean isRequestedBy(@NonNull final String uid) {
+        return uid.equals(mRequesterUid);
+    }
+
+    @Exclude
+    public boolean isAnsweredBy(@NonNull final User user) {
+        return mResolvedAt != null && user.getUid().equals(mReceiverUid);
     }
 
     @Override
     public String toString() {
-        return String.format(Locale.getDefault(),
-                "%s{req: %s, recv: %s, reqTS: %d}",
-                Telolet.class.getSimpleName(), mRequesterUid, mReceiverUid, mRequestedAt);
+        return String.format(Locale.getDefault(), "%s{id: %s}", Telolet.class.getSimpleName(), mId);
     }
 
     public Map<String, Object> toNewRequestMap() {
         final Map<String, Object> map = new HashMap<>();
 
+        map.put("id", mId);
         map.put("requesterUid", mRequesterUid);
         map.put("receiverUid", mReceiverUid);
         map.put("requestLocation", mRequestLocation);
@@ -78,11 +135,14 @@ public class Telolet {
     public Map<String, Object> toNewReplyMap() {
         final Map<String, Object> map = new HashMap<>();
 
+        map.put("id", mId);
         map.put("requesterUid", mRequesterUid);
         map.put("receiverUid", mReceiverUid);
         map.put("requestLocation", mRequestLocation);
         map.put("requestedAt", mRequestedAt);
-        map.put("repliedAt", ServerValue.TIMESTAMP);
+        map.put("resolvedAt", ServerValue.TIMESTAMP);
+        map.put("resolveLocation", mResolveLocation);
 
         return map;
-    }}
+    }
+}

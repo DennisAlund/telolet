@@ -1,7 +1,8 @@
 package se.oddbit.telolet;
 
+import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
@@ -15,16 +16,15 @@ import android.widget.Button;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.Locale;
 
+import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.User;
+import se.oddbit.telolet.services.TeloletListenerService;
 
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
@@ -33,12 +33,13 @@ import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
  * A placeholder fragment containing a simple view.
  */
 public class MainActivityFragment extends Fragment
-        implements FirebaseAuth.AuthStateListener, ValueEventListener, FirebaseUserRecyclerAdapter.EmptyStateListener {
+        implements CurrentUserInterface, TeloletListener.OnTeloletEvent, FirebaseUserRecyclerAdapter.EmptyStateListener {
     private static final String LOG_TAG = MainActivityFragment.class.getSimpleName();
 
     private View mEmptyStateView;
     private RecyclerView mMemberList;
     private FirebaseUserRecyclerAdapter mRecyclerAdapter;
+    private TeloletListener mTeloletListener;
 
     public MainActivityFragment() {
     }
@@ -46,6 +47,10 @@ public class MainActivityFragment extends Fragment
     @Override
     public void onCreate(@Nullable final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        assert firebaseUser != null;
+        mTeloletListener = new TeloletListener(firebaseUser.getUid());
+        mTeloletListener.addTeloletRequestListener(this);
     }
 
     @Override
@@ -73,9 +78,11 @@ public class MainActivityFragment extends Fragment
     @Override
     public void onPause() {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onPause");
+        // Start listening for telolet in the background
+        mTeloletListener.stop();
         mRecyclerAdapter.removeEmptyStateListener(this);
-        stopUserListListener();
-        FirebaseAuth.getInstance().removeAuthStateListener(this);
+        getActivity().startService(new Intent(getActivity(), TeloletListenerService.class));
+
         super.onPause();
     }
 
@@ -83,60 +90,61 @@ public class MainActivityFragment extends Fragment
     public void onResume() {
         super.onResume();
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onResume");
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            FirebaseAuth.getInstance().addAuthStateListener(this);
-        }
+
+        // Stop background listening for requests/responses. Deal with them in the MainActivity
+        getActivity().stopService(new Intent(getActivity(), TeloletListenerService.class));
         mRecyclerAdapter.addEmptyStateListener(this);
-        startUserListListener();
+        mTeloletListener.start();
     }
 
 
     @Override
-    public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged");
-        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
-        if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: NOT LOGGED IN");
-            return;
-        }
-
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                String.format("onAuthStateChanged: %s, %s, %s", firebaseUser.getProviderId(), firebaseUser.getEmail(), firebaseUser.getUid()));
-
-        FirebaseAuth.getInstance().removeAuthStateListener(this);
-        // In case this happened *after* onResume
-        startUserListListener();
-    }
-
-
-    private void startUserListListener() {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startUserListListener");
+    public void onTeloletRequest(final Telolet telolet) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletRequest: " + telolet);
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startUserListListener: Not yet logged in. Can't start listing data.");
-            return;
-        }
-        final String uid = firebaseUser.getUid();
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startUserListListener: starting to listen for user: " + uid);
-        FirebaseDatabase.getInstance().getReference(USERS).child(uid).addValueEventListener(this);
-    }
+        assert firebaseUser != null;
 
-    private void stopUserListListener() {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopUserListListener");
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopUserListListener: Not yet logged in. Can't stop listing data.");
-            return;
+        if (telolet.isPendingRequestBy(firebaseUser.getUid())) {
+            mRecyclerAdapter.setSentTelolet(telolet);
+        } else {
+            mRecyclerAdapter.setReceivedTeloletRequest(telolet);
         }
-
-        final String uid = firebaseUser.getUid();
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopUserListListener: stop to listen for user: " + uid);
-        FirebaseDatabase.getInstance().getReference(USERS).child(uid).removeEventListener(this);
     }
 
     @Override
-    public void onDataChange(final DataSnapshot snapshot) {
-        final User currentUser = snapshot.getValue(User.class);
+    public void onTeloletTimeout(final Telolet telolet) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletTimeout: " + telolet);
+        mRecyclerAdapter.removeTelolet(telolet);
+    }
+
+    @Override
+    public void onTeloletResolved(final Telolet telolet) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletResolved: " + telolet);
+
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        assert firebaseUser != null;
+
+        if (telolet.isRequestedBy(firebaseUser.getUid())) {
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "\n**********\n**********\n TELOLELOLET \n**********\n**********");
+            final MediaPlayer player = MediaPlayer.create(getActivity(), R.raw.klakson_telolet);
+            player.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(final MediaPlayer mediaPlayer) {
+                    FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletResolved: Finished playing telolet");
+                    mRecyclerAdapter.removeTelolet(telolet);
+                }
+            });
+
+            player.start();
+            mRecyclerAdapter.setSentTelolet(telolet);
+        } else {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletResolved: Replied to request: " + telolet);
+            mRecyclerAdapter.removeTelolet(telolet);
+        }
+    }
+
+    @Override
+    public void setCurrentUser(final User currentUser) {
         final int boxSize = (int) FirebaseRemoteConfig.getInstance().getLong(OLC_BOX_SIZE);
         if (currentUser.getLocation() == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
@@ -154,17 +162,6 @@ public class MainActivityFragment extends Fragment
                 .endAt(olcBox + '\uf8ff');
 
         mRecyclerAdapter.setQuery(query);
-    }
-
-    @Override
-    public void onCancelled(final DatabaseError error) {
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, String.format("Error fetching own user (not logged in): %s", error.getMessage()));
-        } else {
-            final String uid = firebaseUser.getUid();
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, String.format("Error fetching own user %s: %s", uid, error.getMessage()));
-        }
     }
 
     @Override

@@ -14,11 +14,13 @@ import static se.oddbit.telolet.models.User.DefaultValues.colors;
 
 @IgnoreExtraProperties
 public class User {
+    public static final String ATTR_LAST_LOGIN = "lastLogin";
     public static final String ATTR_FCM_TOKEN = "fcmToken";
     public static final String ATTR_LOCATION = "location";
 
     private String mUid;
     private String mLocation;
+    private Long mLastLogin;
     private String mImage;
     private String mHandle;
     private String mColor;
@@ -45,6 +47,14 @@ public class User {
 
     public void setLocation(final String location) {
         mLocation = location;
+    }
+
+    public Long getLastLogin() {
+        return mLastLogin;
+    }
+
+    public void setLastLogin(final Long lastLogin) {
+        mLastLogin = lastLogin;
     }
 
     public String getImage() {

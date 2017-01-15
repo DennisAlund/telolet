@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
+import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -21,9 +22,11 @@ import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
@@ -33,9 +36,13 @@ import se.oddbit.telolet.services.CloudMessagingService;
 import se.oddbit.telolet.services.LocationService;
 import se.oddbit.telolet.services.TeloletListenerService;
 
+import static se.oddbit.telolet.util.Constants.Database.USERS;
+
 public class MainActivity extends AppCompatActivity
         implements ValueEventListener, FirebaseAuth.AuthStateListener, GoogleApiClient.OnConnectionFailedListener, ResultCallback<AppInviteInvitationResult> {
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
+
+    private User mCurrentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,10 +68,7 @@ public class MainActivity extends AppCompatActivity
     protected void onPause() {
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onPause");
         FirebaseAuth.getInstance().removeAuthStateListener(this);
-
-        // Start listening for telolet in the background
-        startService(new Intent(this, TeloletListenerService.class));
-
+        stopCurrentUserListener();
         super.onPause();
     }
 
@@ -72,9 +76,7 @@ public class MainActivity extends AppCompatActivity
     public void onResume() {
         super.onResume();
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onResume");
-
-        // Stop background listening for requests/responses. Deal with them in the MainActivity
-        stopService(new Intent(this, TeloletListenerService.class));
+        startCurrentUserListener();
         FirebaseAuth.getInstance().addAuthStateListener(this);
     }
 
@@ -129,10 +131,17 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
-        if (firebaseAuth.getCurrentUser() == null) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged");
+        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+        if (firebaseUser == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: NOT LOGGED IN");
             killActivity();
+            return;
         }
+
+        FirebaseAuth.getInstance().removeAuthStateListener(this);
+        // In case this happened *after* onResume
+        startCurrentUserListener();
     }
 
     @Override
@@ -161,9 +170,9 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        final User user = snapshot.getValue(User.class);
-        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Got user profile from database: " + user);
-        setTitle(user.getHandle());
+        mCurrentUser = snapshot.getValue(User.class);
+        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Got user profile from database: " + mCurrentUser);
+        updateUiForCurrentUser();
     }
 
     @Override
@@ -172,7 +181,57 @@ public class MainActivity extends AppCompatActivity
         FirebaseCrash.report(error.toException());
     }
 
+    @Override
+    public void onAttachFragment(final Fragment fragment) {
+        super.onAttachFragment(fragment);
+        if (fragment instanceof MainActivityFragment) {
+            updateUiForCurrentUser();
+        }
+    }
+
+    private void startCurrentUserListener() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startCurrentUserListener");
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startCurrentUserListener: Not yet logged in. Can't start listing data.");
+            return;
+        }
+        final String uid = firebaseUser.getUid();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "startCurrentUserListener: starting to listen for user: " + uid);
+        FirebaseDatabase.getInstance().getReference(USERS).child(uid).addValueEventListener(this);
+    }
+
+    private void stopCurrentUserListener() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopCurrentUserListener");
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopCurrentUserListener: Not yet logged in. Can't stop listing data.");
+            return;
+        }
+
+        final String uid = firebaseUser.getUid();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "stopCurrentUserListener: stop to listen for user: " + uid);
+        FirebaseDatabase.getInstance().getReference(USERS).child(uid).removeEventListener(this);
+    }
+
+    private void updateUiForCurrentUser() {
+        if (mCurrentUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateUiForCurrentUser: No user data yet.");
+            return;
+        }
+
+        setTitle(mCurrentUser.getHandle());
+        MainActivityFragment mainActivityFragment = (MainActivityFragment) getSupportFragmentManager().findFragmentById(R.id.main_content_fragment);
+        if (mainActivityFragment == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "updateUiForCurrentUser: fragment not ready yet: " + MainActivityFragment.class.getSimpleName());
+            return;
+        }
+
+        mainActivityFragment.setCurrentUser(mCurrentUser);
+    }
+
     private void killActivity() {
+        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Killing the activity");
         stopService(new Intent(this, CloudMessagingInstanceIdService.class));
         stopService(new Intent(this, CloudMessagingService.class));
         stopService(new Intent(this, LocationService.class));

@@ -15,7 +15,7 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
 public class App extends Application {
 
-    private static final String LOG_TAG = "Application";
+    private static final String LOG_TAG = App.class.getSimpleName();
 
     @Override
     public void onCreate() {
@@ -23,6 +23,7 @@ public class App extends Application {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onCreate");
 
         FirebaseDatabase.getInstance().setPersistenceEnabled(true);
+
         if (BuildConfig.DEBUG) {
             FirebaseDatabase.getInstance().setLogLevel(Logger.Level.DEBUG);
         }
@@ -32,6 +33,7 @@ public class App extends Application {
         FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
                 .setDeveloperModeEnabled(BuildConfig.DEBUG)
                 .build();
+
         remoteConfig.setConfigSettings(configSettings);
         remoteConfig.setDefaults(R.xml.remote_config_defaults);
         remoteConfig.fetch().addOnCompleteListener(new OnCompleteListener<Void>() {

@@ -9,26 +9,28 @@ path /users {
 }
 
 
-path /teloletsSent/{user_id} {
+path /requestsSent/{user_id} {
     read() { isCurrentUser(user_id) }
-    index() { [ "repliedAt"] }
+    index() { [ "resolvedAt"] }
 
     path /{id} is Telolet {
+        read() { isCurrentUser(prior(this.receiverUid)) }
         create() { isSignedIn() && auth.uid == this.requesterUid }
         update() { isCurrentUser(this.receiverUid) }
-        validate() { this.requesterUid == user_id }
+        validate() { this.id == id && this.requesterUid == user_id }
     }
 
 }
 
-path /teloletsReceived/{user_id} {
+path /requestsReceived/{user_id} {
     read() { isCurrentUser(user_id) }
-    index() { [ "repliedAt"] }
+    index() { [ "resolvedAt"] }
 
     path /{id} is Telolet {
+        read() { isCurrentUser(prior(this.requesterUid)) }
         create() { isSignedIn() && auth.uid == this.requesterUid }
         update() { auth.uid == this.receiverUid }
-        validate() { this.receiverUid == user_id }
+        validate() { this.id == id && this.receiverUid == user_id }
     }
 }
 
@@ -36,22 +38,20 @@ type User {
     uid: String,
     location: String | Null,
     fcmToken: String | Null,
+    lastLogin: Number | Null,
     image: String,
     handle: String,
     color: String
 }
 
 type Telolet {
+    id: String,
     requesterUid: Immutable<String>,
     receiverUid: Immutable<String>,
     requestLocation: Immutable<String>,
-    requestedAt: Immutable<CurrentTimestamp>,
-    repliedAt: Immutable<CurrentTimestamp> | Null,
-
-    validate() {
-        (this.repliedAt == null || this.repliedAt > this.requestedAt) &&
-        (this.repliedAt == null || auth.uid == this.receiverUid)
-     }
+    resolveLocation: Immutable<String> | Null,
+    requestedAt: CurrentTimestamp,
+    resolvedAt: CurrentTimestamp | Null,
 }
 
 type Immutable<T> extends T {
@@ -63,9 +63,9 @@ type TimeStamp extends Number {
 }
 
 type CurrentTimestamp extends TimeStamp {
-  validate() { this === now }
+  validate() { isInitialValue(this, now) }
 }
 
 isSignedIn() { auth !== null }
 isCurrentUser(uid) { isSignedIn() && auth.uid == uid }
-isInitialValue(value, init) { value === (prior(value) === null ? init : prior(value)) }
+isInitialValue(value, init) { value == (prior(value) == null ? init : prior(value)) }

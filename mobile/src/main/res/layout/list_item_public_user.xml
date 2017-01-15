@@ -2,12 +2,13 @@
 <android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
                                     xmlns:app="http://schemas.android.com/apk/res-auto"
                                     xmlns:card_view="http://schemas.android.com/tools"
-                                    android:id="@+id/public_user_card"
+                                    android:id="@+id/user_card"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:layout_marginBottom="16dp"
                                     android:minHeight="?android:attr/listPreferredItemHeight"
                                     android:padding="8dp"
+                                    android:clickable="true"
                                     card_view:cardCornerRadius="8dp"
                                     card_view:cardUseCompatPadding="true">
 
@@ -18,7 +19,7 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:id="@+id/public_user_image"
+            android:id="@+id/user_image"
             android:layout_width="128dp"
             android:layout_height="128dp"
             android:layout_gravity="start"
@@ -30,7 +31,7 @@
             app:srcCompat="@drawable/ic_directions_bus_black_24dp"/>
 
         <TextView
-            android:id="@+id/public_user_handle"
+            android:id="@+id/user_handle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"

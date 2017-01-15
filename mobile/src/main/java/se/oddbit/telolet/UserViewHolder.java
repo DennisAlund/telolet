@@ -2,7 +2,7 @@ package se.oddbit.telolet;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -10,83 +10,101 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.google.firebase.analytics.FirebaseAnalytics;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
-import com.google.firebase.database.FirebaseDatabase;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.User;
+import se.oddbit.telolet.services.TeloletRequestService;
 
-import static se.oddbit.telolet.util.Constants.Analytics.Events.TELOLET_REQUEST;
-import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
-import static se.oddbit.telolet.util.Constants.Database.TELOLETS_RECEIVED;
-import static se.oddbit.telolet.util.Constants.Database.TELOLETS_SENT;
+import static android.view.animation.AnimationUtils.loadAnimation;
 
-public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+class UserViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
     private static final String LOG_TAG = UserViewHolder.class.getSimpleName();
     private Context mContext;
-    private ImageView mCurrentUserImageView;
-    private TextView mCurrentUserHandleView;
-    private CardView mCardView;
-    private User mUser;
+    private User mCurrentUser;
 
-    public UserViewHolder(final Context context, final View rootItemView) {
+    private final TextView mUserHandleView;
+    private final ImageView mUserImageView;
+    private final CardView mCardView;
+    private User mOtherUser;
+    private Telolet mTeloletRequest;
+
+    UserViewHolder(final Context context, final View rootItemView, final User currentUser) {
         super(rootItemView);
         mContext = context;
-        mCurrentUserImageView = (ImageView) rootItemView.findViewById(R.id.public_user_image);
-        mCurrentUserHandleView = (TextView) rootItemView.findViewById(R.id.public_user_handle);
-        mCardView = (CardView) rootItemView.findViewById(R.id.public_user_card);
+        mCurrentUser = currentUser;
+        mUserHandleView = (TextView) rootItemView.findViewById(R.id.user_handle);
+        mUserImageView = (ImageView) rootItemView.findViewById(R.id.user_image);
+        mCardView = (CardView) rootItemView.findViewById(R.id.user_card);
     }
 
-    void bindToMember(final User user) {
+
+    void bind(@NonNull final User user) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Binding view holder to: %s", user));
-        mUser = user;
+        stopAnimations();
+        mOtherUser = user;
+        mTeloletRequest = null;
         mCardView.setCardBackgroundColor(Color.parseColor(user.getColor()));
-        mCurrentUserHandleView.setText(user.getHandle());
+        mUserImageView.setImageResource(R.drawable.ic_directions_bus_black_24dp);
+        mUserHandleView.setText(user.getHandle());
         mCardView.setOnClickListener(this);
+    }
+
+    void bind(@NonNull final User user, @NonNull final Telolet telolet) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Binding view holder to %s with telolet %s", user, telolet));
+        bind(user);
+
+        mTeloletRequest = telolet;
+
+        if (telolet.isPendingRequestBy(user)) {
+            setStatePendingRequestReceived();
+        } else if (telolet.isPendingRequestFor(user)) {
+            setStatePendingRequestSent();
+        } else if (telolet.isAnsweredBy(user)){
+            setStateShowingReceivedResponse();
+        }
     }
 
     @Override
     public void onClick(final View view) {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Clicking: " + mUser);
-        createNewTeloletRequest(mUser);
+        if (mTeloletRequest == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onClick: will create a telolet request to: " + mOtherUser);
+            mCardView.setOnClickListener(null);
+            mCardView.startAnimation(loadAnimation(mContext, R.anim.wiggle));
+            TeloletRequestService.startActionRequest(mContext, mOtherUser.getUid(), mCurrentUser.getLocation());
+        } else if (mTeloletRequest.isPendingRequestBy(mOtherUser)) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onClick: will be a reply to telolet request by: " + mOtherUser);
+            stopAnimations();
+            mCardView.setOnClickListener(null);
+            TeloletRequestService.startActionResponse(mContext, mTeloletRequest.getId(), mOtherUser.getLocation());
+        } else {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onClick: Already stuff going. Do nothing for: " + mOtherUser);
+            mCardView.startAnimation(loadAnimation(mContext, R.anim.wiggle));
+        }
     }
 
-    private void createNewTeloletRequest(final User user) {
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "createNewTeloletRequest: " + user);
-        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "User was logged out while listing users... strange");
-            return;
-        }
+    private void setStatePendingRequestSent() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Requested telolet %s to %s. Shake a little.", mTeloletRequest, mOtherUser));
+        mUserHandleView.setText(R.string.om_telolet_om);
+        mUserImageView.setImageResource(R.drawable.ic_emoticon_excited);
+        mCardView.startAnimation(loadAnimation(mContext, R.anim.wiggle));
+    }
 
-        final Telolet telolet = new Telolet();
-        telolet.setRequesterUid(firebaseUser.getUid());
-        telolet.setReceiverUid(user.getUid());
-        telolet.setRequestLocation(user.getLocation());
+    private void setStatePendingRequestReceived() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Got telolet request %s from %s. Shake infinitely.", mTeloletRequest, mOtherUser));
+        mUserHandleView.setText(R.string.om_telolet_om);
+        mUserImageView.setImageResource(R.drawable.ic_human_handsup);
+        mCardView.startAnimation(loadAnimation(mContext, R.anim.infinite_shake));
+    }
 
-        final Map<String, Object> updatesMap = new HashMap<>();
-        final Map<String, Object> valueMap = telolet.toNewRequestMap();
-        final String pushKey = FirebaseDatabase.getInstance().getReference().push().getKey();
+    private void setStateShowingReceivedResponse() {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("Got telolet response %s from %s.", mTeloletRequest, mOtherUser));
+        mUserImageView.setImageResource(R.drawable.ic_volume_up_black_24dp);
+        mUserImageView.startAnimation(loadAnimation(mContext, R.anim.pulsate));
+    }
 
-        updatesMap.put(String.format("/%s/%s/%s", TELOLETS_SENT, firebaseUser.getUid(), pushKey), valueMap);
-        updatesMap.put(String.format("/%s/%s/%s", TELOLETS_RECEIVED, user.getUid(), pushKey), valueMap);
-
-        FirebaseDatabase.getInstance().getReference().updateChildren(updatesMap);
-
-        final Bundle analyticsBundle = new Bundle();
-        // The length 11 is for full length OLC that are actually 10 value characters
-        for (int boxSize : new int[]{4, 6, 8, 11}) {
-            final String olcBox = user.getLocation().substring(0, boxSize);
-            // Put in location data for the box size.
-            analyticsBundle.putString(OLC + (boxSize == 11 ? 10 : boxSize), olcBox);
-        }
-
-        FirebaseAnalytics.getInstance(mContext).logEvent(TELOLET_REQUEST, analyticsBundle);
+    private void stopAnimations() {
+        mCardView.clearAnimation();
+        mUserImageView.clearAnimation();
     }
 }

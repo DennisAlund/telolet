@@ -13,6 +13,8 @@ import android.widget.Toast;
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.ui.ResultCodes;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -20,6 +22,7 @@ import com.google.firebase.crash.FirebaseCrash;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.Arrays;
@@ -142,10 +145,22 @@ public class LaunchActivity extends AppCompatActivity
             FirebaseDatabase.getInstance().getReference(USERS).child(uid).setValue(user);
         }
 
-        hideProgressDialog();
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting main activity");
-        startActivity(new Intent(this, MainActivity.class));
-        finish();
+        final User user = snapshot.getValue(User.class);
+        FirebaseDatabase.getInstance().getReference(USERS).child(user.getUid()).removeEventListener(this);
+        FirebaseDatabase.getInstance()
+                .getReference(USERS)
+                .child(user.getUid())
+                .child(User.ATTR_LAST_LOGIN)
+                .setValue(ServerValue.TIMESTAMP)
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull final Task<Void> task) {
+                        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting main activity");
+                        hideProgressDialog();
+                        startActivity(new Intent(LaunchActivity.this, MainActivity.class));
+                        finish();
+                    }
+                });
     }
 
     @Override

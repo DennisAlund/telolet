@@ -15,10 +15,11 @@
     <string name="invite_friends_engagement_text">Looks like this game would be more fun with some of your friends around!!!</string>
     <string name="menu_invite_friends">Invite fun friends</string>
     <string name="friend_invitation_title_v1">Om, Telolet, Om!</string>
-    <string name="friend_invitation_message_v1">Om, Telolet, Om! Download this awesome app and honk for me!</string>
+    <string name="friend_invitation_message_v1">Om, Telolet, Om! Download this awesome app and honk for me! #OmTeloletOm</string>
     <string name="friend_invitation_cta_v1">Telolelolet!!!</string>
     <string name="friend_invitation_title_v2">Invite fun friends</string>
-    <string name="friend_invitation_message_v2">Om, Telolet, Om! Join me in this fun location based game!</string>
+    <string name="friend_invitation_message_v2">Om, Telolet, Om! Join me in this fun location based game! #OmTeloletOm</string>
     <string name="friend_invitation_cta_v2">Join your friends!</string>
     <string name="login_anonymous_button">Login anonymously</string>
+    <string name="om_telolet_om">Om, Telolet, Om!</string>
 </resources>

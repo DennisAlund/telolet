@@ -57,12 +57,20 @@ public class TeloletListenerService extends Service implements FirebaseAuth.Auth
     public void onTeloletRequest(final Telolet telolet) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletRequest: " + telolet);
         FirebaseCrash.logcat(Log.WARN, LOG_TAG, "should show notification: " + telolet);
+
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        assert firebaseUser != null;
     }
 
     @Override
-    public void onTeloletResponse(final Telolet telolet) {
+    public void onTeloletResolved(final Telolet telolet) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletResponse: " + telolet);
         FirebaseCrash.logcat(Log.WARN, LOG_TAG, "should show notification: " + telolet);
+    }
+
+    @Override
+    public void onTeloletTimeout(final Telolet telolet) {
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onTeloletTimeout: " + telolet);
     }
 
     private synchronized void createTeloletListener() {

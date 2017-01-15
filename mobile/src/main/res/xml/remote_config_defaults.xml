@@ -24,5 +24,9 @@
         <key>LIST_AD_FREQUENCY</key>
         <value>3</value>
     </entry>
+    <entry>
+        <key>RESPONSE_THRESHOLD_MILLISEC</key>
+        <value>300000</value>
+    </entry>
 </defaultsMap>
 
