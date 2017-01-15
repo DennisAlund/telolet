@@ -143,6 +143,7 @@ public class LaunchActivity extends AppCompatActivity
             final User user = User.createRandom(this, uid);
             FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Creating new user profile: " + user);
             FirebaseDatabase.getInstance().getReference(USERS).child(uid).setValue(user);
+            return;
         }
 
         final User user = snapshot.getValue(User.class);
