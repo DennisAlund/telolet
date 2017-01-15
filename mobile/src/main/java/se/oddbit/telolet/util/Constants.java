@@ -19,7 +19,8 @@ public final class Constants {
 
         public static final class UserProperty {
             public static final String GAME_LEVEL = "level";
-            public static final String USER_LOCATION = "location";
+            public static final String USER_LOCATION = "Location";
+            public static final String USER_LAST_SEEN = "last_seen";
         }
     }
 
