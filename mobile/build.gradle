@@ -8,15 +8,15 @@ android {
         applicationId "se.oddbit.telolet"
         minSdkVersion 16
         targetSdkVersion 25
-        versionName "0.5.2"
-        versionCode 7
+        versionName "0.5.4"
+        versionCode 9
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
@@ -46,7 +46,5 @@ dependencies {
     compile 'com.google.firebase:firebase-ads:10.0.1'
     testCompile 'junit:junit:4.12'
 }
-
-
 
 apply plugin: 'com.google.gms.google-services'
