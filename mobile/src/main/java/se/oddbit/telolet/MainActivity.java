@@ -21,7 +21,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
@@ -37,7 +36,6 @@ import se.oddbit.telolet.services.CloudMessagingService;
 import se.oddbit.telolet.services.LocationService;
 import se.oddbit.telolet.services.TeloletListenerService;
 
-import static se.oddbit.telolet.util.Constants.Analytics.UserProperty.USER_LAST_SEEN;
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 
 public class MainActivity extends AppCompatActivity
@@ -175,8 +173,6 @@ public class MainActivity extends AppCompatActivity
         mCurrentUser = snapshot.getValue(User.class);
         FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Got user profile from database: " + mCurrentUser);
         updateUiForCurrentUser();
-
-        FirebaseAnalytics.getInstance(this).setUserProperty(USER_LAST_SEEN, mCurrentUser.getLastLogin().toString());
     }
 
     @Override
