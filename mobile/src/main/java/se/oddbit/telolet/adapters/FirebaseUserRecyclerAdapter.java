@@ -126,7 +126,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
                     moveToTop(userStateSnapshot.getKey());
                 }
 
-                recyclerView.smoothScrollToPosition(0);
+                recyclerView.scrollToPosition(0);
             }
 
             @Override
@@ -263,9 +263,12 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         synchronized (mListItemsLock) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Adding moving user to the top: " + uid);
             final int originalPosition = mItemIds.indexOf(uid);
-            mItemIds.remove(originalPosition);
-            mItemIds.add(0, uid);
-            notifyItemMoved(originalPosition, 0);
+            if (originalPosition > 0) {
+                // Only move if the item is present and not already on top
+                mItemIds.remove(originalPosition);
+                mItemIds.add(0, uid);
+                notifyItemMoved(originalPosition, 0);
+            }
         }
     }
 
