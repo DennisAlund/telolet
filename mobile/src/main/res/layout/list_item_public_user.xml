@@ -6,9 +6,9 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:layout_marginBottom="16dp"
+                                    android:clickable="true"
                                     android:minHeight="?android:attr/listPreferredItemHeight"
                                     android:padding="8dp"
-                                    android:clickable="true"
                                     card_view:cardCornerRadius="8dp"
                                     card_view:cardUseCompatPadding="true">
 
@@ -17,6 +17,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
+
 
         <ImageView
             android:id="@+id/user_image"
@@ -39,6 +40,93 @@
             android:text="@string/placeholder_public_user_handle"
             android:textAllCaps="true"
             android:textAppearance="@style/TextAppearance.AppCompat.Large"/>
+
+        <LinearLayout
+            android:id="@+id/telolet_text_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/t"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/e"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/l"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/o"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/l"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/e"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/l"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/o"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/l"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/e"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/t"
+                android:textAllCaps="true"
+                android:textSize="25sp"/>
+        </LinearLayout>
 
     </LinearLayout>
 </android.support.v7.widget.CardView>

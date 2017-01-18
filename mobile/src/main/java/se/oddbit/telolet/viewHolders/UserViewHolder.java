@@ -2,13 +2,16 @@ package se.oddbit.telolet.viewHolders;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -28,6 +31,8 @@ import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.models.UserState;
 
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
 import static android.view.animation.AnimationUtils.loadAnimation;
 import static se.oddbit.telolet.models.UserState.PENDING_RECEIVED;
 import static se.oddbit.telolet.models.UserState.PENDING_SENT;
@@ -44,6 +49,7 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     private Context mContext;
     private User mCurrentUser;
 
+    private final LinearLayout mTeloletTextContainer;
     private final TextView mUserHandleView;
     private final ImageView mUserImageView;
     private final CardView mCardView;
@@ -59,6 +65,7 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
         mUserHandleView = (TextView) rootItemView.findViewById(R.id.user_handle);
         mUserImageView = (ImageView) rootItemView.findViewById(R.id.user_image);
         mCardView = (CardView) rootItemView.findViewById(R.id.user_card);
+        mTeloletTextContainer = (LinearLayout) rootItemView.findViewById(R.id.telolet_text_container);
     }
 
     @Override
@@ -136,7 +143,11 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
 
         mCardView.setCardBackgroundColor(Color.parseColor(mOtherUser.getColor()));
         mUserImageView.setImageResource(R.drawable.ic_directions_bus_black_24dp);
+        mUserImageView.setBackground(null);
         mUserHandleView.setText(mOtherUser.getHandle());
+
+        mUserHandleView.setVisibility(VISIBLE);
+        mTeloletTextContainer.setVisibility(GONE);
 
         // Only add click listener if current user is set
         mCardView.setOnClickListener(mCurrentUser == null ? null : this);
@@ -160,8 +171,21 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     private void setStatePlayingTelolet() {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("setStatePlayingTelolet: %s: pulsate a speaker", mOtherUser));
         mCardView.setOnClickListener(null);
-        mUserImageView.setImageResource(R.drawable.ic_volume_up_black_24dp);
-        mUserImageView.startAnimation(loadAnimation(mContext, R.anim.pulsate));
+
+        mUserImageView.setImageDrawable(null);
+
+        mUserImageView.setBackgroundResource(R.drawable.ic_animated_speaker);
+        final AnimationDrawable animationDrawable = (AnimationDrawable) mUserImageView.getBackground();
+        animationDrawable.start();
+
+        mUserHandleView.setVisibility(GONE);
+        mTeloletTextContainer.setVisibility(VISIBLE);
+        for (int i = 0; i < mTeloletTextContainer.getChildCount(); i++) {
+            final View letterView = mTeloletTextContainer.getChildAt(i);
+            final Animation animation = loadAnimation(mContext, R.anim.pulsate);
+            animation.setDuration(150 + ((i%3) * 100));
+            letterView.startAnimation(animation);
+        }
     }
 
     private void stopAnimations() {

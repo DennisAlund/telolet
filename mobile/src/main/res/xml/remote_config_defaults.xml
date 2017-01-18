@@ -26,7 +26,7 @@
     </entry>
     <entry>
         <key>RESPONSE_TIMEOUT_SECONDS</key>
-        <value>300000</value>
+        <value>60</value>
     </entry>
 </defaultsMap>
 
