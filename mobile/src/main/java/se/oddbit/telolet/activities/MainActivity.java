@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.activities;
 
 import android.content.Context;
 import android.content.Intent;
@@ -30,11 +30,15 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
+import se.oddbit.telolet.BuildConfig;
+import se.oddbit.telolet.fragments.MainActivityFragment;
+import se.oddbit.telolet.R;
 import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.services.CloudMessagingInstanceIdService;
 import se.oddbit.telolet.services.CloudMessagingService;
 import se.oddbit.telolet.services.LocationService;
-import se.oddbit.telolet.services.TeloletListenerService;
+import se.oddbit.telolet.services.PlayTeloletService;
+import se.oddbit.telolet.services.TeloletBackgroundService;
 
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 
@@ -62,6 +66,9 @@ public class MainActivity extends AppCompatActivity
         startService(new Intent(this, CloudMessagingInstanceIdService.class));
         startService(new Intent(this, CloudMessagingService.class));
         startService(new Intent(this, LocationService.class));
+        startService(new Intent(this, TeloletBackgroundService.class));
+        startService(new Intent(this, TeloletBackgroundService.class));
+        startService(new Intent(this, PlayTeloletService.class));
     }
 
     @Override
@@ -235,6 +242,7 @@ public class MainActivity extends AppCompatActivity
         stopService(new Intent(this, CloudMessagingInstanceIdService.class));
         stopService(new Intent(this, CloudMessagingService.class));
         stopService(new Intent(this, LocationService.class));
-        stopService(new Intent(this, TeloletListenerService.class));
+        stopService(new Intent(this, TeloletBackgroundService.class));
+        stopService(new Intent(this, PlayTeloletService.class));
     }
 }

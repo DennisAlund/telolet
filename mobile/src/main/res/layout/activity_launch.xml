@@ -12,7 +12,7 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="se.oddbit.telolet.LaunchActivity">
+    tools:context="se.oddbit.telolet.activities.LaunchActivity">
 
     <FrameLayout
         android:layout_width="wrap_content"

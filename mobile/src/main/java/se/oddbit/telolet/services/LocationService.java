@@ -225,7 +225,8 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
         final String locationCode = newLocation == null ? null : newLocation.getCode();
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveLocation: PATH user not yet set. Can't save location=" + locationCode);
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveLocation: User has been logged out. Stop service.");
+            stopSelf();
             return;
         }
 

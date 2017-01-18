@@ -25,7 +25,7 @@
         <value>4</value>
     </entry>
     <entry>
-        <key>RESPONSE_THRESHOLD_MILLISEC</key>
+        <key>RESPONSE_TIMEOUT_SECONDS</key>
         <value>300000</value>
     </entry>
 </defaultsMap>

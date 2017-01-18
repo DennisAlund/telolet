@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.interfaces;
 
 import se.oddbit.telolet.models.User;
 

@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.activities;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
@@ -28,6 +28,8 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.Arrays;
 import java.util.List;
 
+import se.oddbit.telolet.BuildConfig;
+import se.oddbit.telolet.R;
 import se.oddbit.telolet.models.User;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -135,18 +137,27 @@ public class LaunchActivity extends AppCompatActivity
 
     @Override
     public void onDataChange(final DataSnapshot snapshot) {
-        if (!snapshot.exists()) {
+        User user = snapshot.getValue(User.class);
+        if (user == null) {
+            // Make sure to check the initialization also, because location service might
             final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             assert firebaseUser != null;
 
             final String uid = firebaseUser.getUid();
-            final User user = User.createRandom(this, uid);
+
+            user = User.createRandom(this, uid);
             FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Creating new user profile: " + user);
             FirebaseDatabase.getInstance().getReference(USERS).child(uid).setValue(user);
             return;
         }
 
-        final User user = snapshot.getValue(User.class);
+        if (!user.isValid()) {
+            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "User doesn't seem to be completely initialized.");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Perhaps services are still running while user logged out? Logging out and try to make services stop.");
+            AuthUI.getInstance().signOut(LaunchActivity.this);
+            return;
+        }
+
         FirebaseDatabase.getInstance().getReference(USERS).child(user.getUid()).removeEventListener(this);
         FirebaseDatabase.getInstance()
                 .getReference(USERS)

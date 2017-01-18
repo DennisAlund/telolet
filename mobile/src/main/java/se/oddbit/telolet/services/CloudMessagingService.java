@@ -2,6 +2,8 @@ package se.oddbit.telolet.services;
 
 import android.util.Log;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -21,6 +23,12 @@ public class CloudMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(final RemoteMessage remoteMessage) {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "From: " + remoteMessage.getFrom());
+        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onMessageReceived: User has been logged out. Stop service.");
+            stopSelf();
+            return;
+        }
 
         // Check if message contains a data payload.
         if (remoteMessage.getData().size() > 0) {

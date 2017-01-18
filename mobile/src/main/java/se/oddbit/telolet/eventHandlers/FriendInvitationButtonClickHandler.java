@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.eventHandlers;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -10,6 +10,8 @@ import android.view.View;
 import com.google.android.gms.appinvite.AppInviteInvitation;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.crash.FirebaseCrash;
+
+import se.oddbit.telolet.R;
 
 import static se.oddbit.telolet.util.Constants.Analytics.Events.FRIEND_INVITE_SENT;
 import static se.oddbit.telolet.util.Constants.RequestCodes.FRIEND_INVITATION_REQUEST;

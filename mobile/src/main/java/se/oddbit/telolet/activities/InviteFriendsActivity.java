@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.activities;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -17,6 +17,9 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import se.oddbit.telolet.eventHandlers.FriendInvitationButtonClickHandler;
+import se.oddbit.telolet.R;
 
 import static se.oddbit.telolet.util.Constants.Analytics.Events.FRIEND_INVITE_SENT;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.TEST_GROUP;

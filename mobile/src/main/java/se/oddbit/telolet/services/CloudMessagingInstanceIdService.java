@@ -38,7 +38,8 @@ public class CloudMessagingInstanceIdService extends FirebaseInstanceIdService {
 
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveFcmToken: not yet logged in");
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "saveLocation: User has been logged out. Stop service.");
+            stopSelf();
             return;
         }
 

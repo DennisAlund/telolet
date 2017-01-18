@@ -2,6 +2,7 @@ package se.oddbit.telolet.models;
 
 import android.content.Context;
 
+import com.google.firebase.database.Exclude;
 import com.google.firebase.database.IgnoreExtraProperties;
 import com.google.firebase.iid.FirebaseInstanceId;
 
@@ -92,6 +93,11 @@ public class User {
     @Override
     public String toString() {
         return String.format("%s{uid: %s}", User.class.getSimpleName(), mUid);
+    }
+
+    @Exclude
+    public boolean isValid() {
+        return mUid != null && !mUid.isEmpty();
     }
 
     public static User createRandom(final Context context, final String uid) {

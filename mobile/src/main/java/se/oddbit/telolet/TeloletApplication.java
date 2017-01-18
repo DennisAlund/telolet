@@ -13,9 +13,8 @@ import com.google.firebase.database.Logger;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
-public class App extends Application {
-
-    private static final String LOG_TAG = App.class.getSimpleName();
+public class TeloletApplication extends Application {
+    private static final String LOG_TAG = TeloletApplication.class.getSimpleName();
 
     @Override
     public void onCreate() {
@@ -25,7 +24,7 @@ public class App extends Application {
         FirebaseDatabase.getInstance().setPersistenceEnabled(true);
 
         if (BuildConfig.DEBUG) {
-            FirebaseDatabase.getInstance().setLogLevel(Logger.Level.DEBUG);
+            FirebaseDatabase.getInstance().setLogLevel(Logger.Level.INFO);
         }
 
         // Remote configuration
@@ -47,5 +46,10 @@ public class App extends Application {
                 }
             }
         });
+    }
+
+    @Override
+    public void onTerminate() {
+        super.onTerminate();
     }
 }

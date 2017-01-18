@@ -1,4 +1,4 @@
-package se.oddbit.telolet;
+package se.oddbit.telolet.viewHolders;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -13,6 +13,9 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.NativeExpressAdView;
 import com.google.firebase.crash.FirebaseCrash;
+
+import se.oddbit.telolet.BuildConfig;
+import se.oddbit.telolet.R;
 
 import static io.fabric.sdk.android.services.common.CommonUtils.md5;
 
