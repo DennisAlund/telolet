@@ -20,7 +20,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
@@ -36,7 +35,8 @@ import static android.view.View.VISIBLE;
 import static android.view.animation.AnimationUtils.loadAnimation;
 import static se.oddbit.telolet.models.UserState.PENDING_RECEIVED;
 import static se.oddbit.telolet.models.UserState.PENDING_SENT;
-import static se.oddbit.telolet.models.UserState.RESOLVED;
+import static se.oddbit.telolet.models.UserState.TELOLET_RECEIVED;
+import static se.oddbit.telolet.models.UserState.TELOLET_SENT;
 import static se.oddbit.telolet.util.Constants.Analytics.Events.TELOLET_REQUEST;
 import static se.oddbit.telolet.util.Constants.Analytics.Events.TELOLET_RESPONSE;
 import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
@@ -72,7 +72,6 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     public void onClick(final View view) {
         if (mUserState == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onClick: will create a telolet request to: " + mOtherUser);
-            setStatePendingRequestSent();
             sendRequest();
         } else if (mUserState.isState(PENDING_RECEIVED)) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onClick: will be a reply to telolet request by: " + mOtherUser);
@@ -85,18 +84,24 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
 
     @Override
     public void onDataChange(final DataSnapshot snapshot) {
-        mUserState = snapshot.getValue(UserState.class);
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onDataChange: %s => %s", mOtherUser, mUserState));
-        if (mUserState == null) {
-            setDefaultState();
-        } else if (mUserState.isState(PENDING_SENT)) {
-            setStatePendingRequestSent();
-        } else if (mUserState.isState(PENDING_RECEIVED)) {
-            setStatePendingRequestReceived();
-        } else if (mUserState.isState(RESOLVED)) {
-            setStatePlayingTelolet();
-        } else {
-            setDefaultState();
+        final UserState newUserState = snapshot.getValue(UserState.class);
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("onDataChange: %s %s => %s", mOtherUser, mUserState, newUserState));
+        setDefaultState();
+        mUserState = newUserState;
+        final String state = newUserState == null ? "?" : newUserState.getState();
+        switch (state) {
+            case PENDING_SENT:
+                setStatePendingRequestSent();
+                break;
+            case PENDING_RECEIVED:
+                setStatePendingRequestReceived();
+                break;
+            case TELOLET_RECEIVED:
+            case TELOLET_SENT:
+                setStatePlayingTelolet();
+                break;
+            default:
+                setDefaultState();
         }
     }
 
@@ -170,20 +175,28 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
 
     private void setStatePlayingTelolet() {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("setStatePlayingTelolet: %s: pulsate a speaker", mOtherUser));
+
+        stopAnimations();
         mCardView.setOnClickListener(null);
 
+        // Replace the image with a pulsating speaker
+        /*
         mUserImageView.setImageDrawable(null);
-
         mUserImageView.setBackgroundResource(R.drawable.ic_animated_speaker);
         final AnimationDrawable animationDrawable = (AnimationDrawable) mUserImageView.getBackground();
         animationDrawable.start();
+        */
+        mUserImageView.setImageResource(R.drawable.ic_animated_speaker);
+        final AnimationDrawable animationDrawable = (AnimationDrawable) mUserImageView.getDrawable();
+        animationDrawable.start();
 
+        // Replace the user handle with a wiggly text saying TELOLET
         mUserHandleView.setVisibility(GONE);
         mTeloletTextContainer.setVisibility(VISIBLE);
         for (int i = 0; i < mTeloletTextContainer.getChildCount(); i++) {
             final View letterView = mTeloletTextContainer.getChildAt(i);
             final Animation animation = loadAnimation(mContext, R.anim.pulsate);
-            animation.setDuration(150 + ((i%3) * 100));
+            animation.setDuration(150 + ((i % 3) * 100)); // Wiggle letters at different duration offset
             letterView.startAnimation(animation);
         }
     }
@@ -194,42 +207,44 @@ public class UserViewHolder extends RecyclerView.ViewHolder implements View.OnCl
     }
 
     private void replyToIncomingRequest() {
-        final String otherUid = mOtherUser.getUid();
-        final String currUid = mCurrentUser.getUid();
-        final String location = mCurrentUser.getLocation();
-        final String teloletId = mUserState.getTeloletId();
+        makeAnalyticsEventReport(TELOLET_RESPONSE);
+
+        final Telolet telolet = mUserState.getTelolet();
+        telolet.setResolveLocation(mCurrentUser.getLocation());
+        telolet.setState(Telolet.STATE_REPLIED);
+
+        final String otherUid = telolet.getRequesterUid();
+        final String currUid = telolet.getReceiverUid();
+
         final Map<String, Object> updatesMap = new HashMap<>();
 
-        updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_SENT, otherUid, teloletId, Telolet.ATTR_RESOLVED_AT), ServerValue.TIMESTAMP);
-        updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_SENT, otherUid, teloletId, Telolet.ATTR_RESOLVE_LOCATION), location);
-        updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, currUid, teloletId, Telolet.ATTR_RESOLVED_AT), ServerValue.TIMESTAMP);
-        updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, currUid, teloletId, Telolet.ATTR_RESOLVE_LOCATION), location);
-        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), null); // Remove state from this user view
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "replyToIncomingRequest: " + telolet);
+        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_SENT, otherUid, telolet.getId()), telolet.toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, currUid, telolet.getId()), telolet.toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), new UserState(telolet, UserState.TELOLET_SENT).toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, otherUid, currUid), new UserState(telolet, UserState.TELOLET_RECEIVED).toValueMap());
 
         FirebaseDatabase.getInstance().getReference().updateChildren(updatesMap);
-        makeAnalyticsEventReport(TELOLET_RESPONSE);
     }
 
     private void sendRequest() {
-        final String otherUid = mOtherUser.getUid();
-        final String currUid = mCurrentUser.getUid();
+        makeAnalyticsEventReport(TELOLET_REQUEST);
 
-        final String pushKey = FirebaseDatabase.getInstance().getReference().push().getKey();
-        final Telolet telolet = new Telolet(pushKey);
-        telolet.setRequesterUid(currUid);
-        telolet.setReceiverUid(otherUid);
+        final Telolet telolet = new Telolet(FirebaseDatabase.getInstance().getReference().push().getKey());
+        telolet.setRequesterUid(mCurrentUser.getUid());
+        telolet.setReceiverUid(mOtherUser.getUid());
         telolet.setRequestLocation(mCurrentUser.getLocation());
+        telolet.setState(Telolet.STATE_PENDING);
 
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "sendRequest: " + telolet);
 
         final Map<String, Object> updatesMap = new HashMap<>();
-
-        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_SENT, currUid, pushKey), telolet.toNewRequestMap());
-        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, otherUid, pushKey), telolet.toNewRequestMap());
-        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), new UserState(pushKey, PENDING_SENT));
+        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_SENT, mCurrentUser.getUid(), telolet.getId()), telolet.toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, mOtherUser.getUid(), telolet.getId()), telolet.toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, mCurrentUser.getUid(), mOtherUser.getUid()), new UserState(telolet, UserState.PENDING_SENT).toValueMap());
+        updatesMap.put(String.format("/%s/%s/%s", USER_STATES, mOtherUser.getUid(), mCurrentUser.getUid()), new UserState(telolet, UserState.PENDING_RECEIVED).toValueMap());
 
         FirebaseDatabase.getInstance().getReference().updateChildren(updatesMap);
-        makeAnalyticsEventReport(TELOLET_REQUEST);
     }
 
     private void makeAnalyticsEventReport(final String event) {

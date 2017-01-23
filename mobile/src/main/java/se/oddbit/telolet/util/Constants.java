@@ -31,13 +31,13 @@ public final class Constants {
     }
 
     public static final class RemoteConfig {
-        public static final String RESPONSE_TIMEOUT_SECONDS = "RESPONSE_TIMEOUT_SECONDS";
+        public static final String TELOLET_TIMEOUT_SECONDS = "TELOLET_TIMEOUT_SECONDS";
         public static final String TEST_GROUP = "TEST_GROUP";
         public static final String LIST_AD_FREQUENCY = "LIST_AD_FREQUENCY";
         public static final String OLC_BOX_SIZE = "OLC_BOX_SIZE";
-        public static final String LOCATION_UPDATES_THRESHOLD_METERS = "LOCATION_UPDATES_THRESHOLD_METERS";
-        public static final String LOCATION_UPDATES_INTERVAL = "LOCATION_UPDATES_INTERVAL";
-        public static final String FASTEST_LOCATION_UPDATE_INTERVAL = "FASTEST_LOCATION_UPDATE_INTERVAL";
+        public static final String LOCATION_UPDATE_METERS = "LOCATION_UPDATE_METERS";
+        public static final String LOCATION_UPDATE_SECONDS = "LOCATION_UPDATE_SECONDS";
+        public static final String LOCATION_FASTEST_UPDATE_SECONDS = "LOCATION_FASTEST_UPDATE_SECONDS";
 
     }
 }

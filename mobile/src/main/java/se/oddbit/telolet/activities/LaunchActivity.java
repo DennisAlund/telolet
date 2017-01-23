@@ -138,8 +138,7 @@ public class LaunchActivity extends AppCompatActivity
     @Override
     public void onDataChange(final DataSnapshot snapshot) {
         User user = snapshot.getValue(User.class);
-        if (user == null) {
-            // Make sure to check the initialization also, because location service might
+        if (user == null || !user.isValid()) {
             final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             assert firebaseUser != null;
 
@@ -148,13 +147,6 @@ public class LaunchActivity extends AppCompatActivity
             user = User.createRandom(this, uid);
             FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Creating new user profile: " + user);
             FirebaseDatabase.getInstance().getReference(USERS).child(uid).setValue(user);
-            return;
-        }
-
-        if (!user.isValid()) {
-            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "User doesn't seem to be completely initialized.");
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Perhaps services are still running while user logged out? Logging out and try to make services stop.");
-            AuthUI.getInstance().signOut(LaunchActivity.this);
             return;
         }
 

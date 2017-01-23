@@ -18,7 +18,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
-import com.google.firebase.database.ServerValue;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.HashMap;
@@ -30,28 +29,23 @@ import java.util.TimerTask;
 import se.oddbit.telolet.R;
 import se.oddbit.telolet.activities.MainActivity;
 import se.oddbit.telolet.models.Telolet;
-import se.oddbit.telolet.models.UserState;
 
-import static se.oddbit.telolet.models.UserState.RESOLVED;
 import static se.oddbit.telolet.util.Constants.Database.TELOLET_REQUESTS_RECEIVED;
 import static se.oddbit.telolet.util.Constants.Database.TELOLET_REQUESTS_SENT;
 import static se.oddbit.telolet.util.Constants.Database.USER_STATES;
-import static se.oddbit.telolet.util.Constants.RemoteConfig.RESPONSE_TIMEOUT_SECONDS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.TELOLET_TIMEOUT_SECONDS;
 
-public class TeloletBackgroundService extends Service implements FirebaseAuth.AuthStateListener, ChildEventListener {
-    private static final String LOG_TAG = TeloletBackgroundService.class.getSimpleName();
+public class TeloletReceivedRequestService extends Service implements FirebaseAuth.AuthStateListener, ChildEventListener {
+    private static final String LOG_TAG = TeloletReceivedRequestService.class.getSimpleName();
     private static final int REQUEST_NOTIFICATION_ID = 1;
 
     private NotificationManager mNotificationManager;
     private int mPendingRequestCounter;
-    private Query mPendingSentRequests;
     private Query mPendingReceivedRequests;
-    private Map<String, TimerTask> mRequestTimeoutMap = new HashMap<>();
+    private final Map<String, TimerTask> mRequestTimeoutMap = new HashMap<>();
     private final Timer mRequestTimeoutHandler = new Timer();
 
-
-
-    public TeloletBackgroundService() {
+    public TeloletReceivedRequestService() {
     }
 
     @Override
@@ -70,28 +64,20 @@ public class TeloletBackgroundService extends Service implements FirebaseAuth.Au
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         assert firebaseUser != null;
 
-        // A query for pending SENT telolet requests. When remote user resolves it will trigger REMOVE
-        mPendingSentRequests = FirebaseDatabase.getInstance()
-                .getReference(TELOLET_REQUESTS_SENT)
-                .child(firebaseUser.getUid())
-                .orderByChild(Telolet.ATTR_RESOLVED_AT)
-                .equalTo(null);
-        mPendingSentRequests.addChildEventListener(this);
-
-        // A query for pending RECEIVED requests. When current client resolve it will trigger REMOVE
         mPendingReceivedRequests = FirebaseDatabase.getInstance()
                 .getReference(TELOLET_REQUESTS_RECEIVED)
                 .child(firebaseUser.getUid())
-                .orderByChild(Telolet.ATTR_RESOLVED_AT)
-                .equalTo(null);
+                .orderByChild(Telolet.ATTR_STATE)
+                .startAt(Telolet.STATE_PENDING);
+
         mPendingReceivedRequests.addChildEventListener(this);
     }
 
     @Override
     public void onDestroy() {
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onDestroy");
-        mPendingSentRequests.removeEventListener(this);
         mPendingReceivedRequests.removeEventListener(this);
+
         super.onDestroy();
     }
 
@@ -109,60 +95,40 @@ public class TeloletBackgroundService extends Service implements FirebaseAuth.Au
         final Telolet telolet = snapshot.getValue(Telolet.class);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildAdded: " + telolet);
 
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        assert firebaseUser != null;
-        final String uid = firebaseUser.getUid();
-
-        if (telolet.getReceiverUid().equals(uid)) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildAdded: pending RECEIVE request added: " + telolet);
-            mPendingRequestCounter += 1;
-            makeNotification();
-
-            FirebaseDatabase.getInstance()
-                    .getReference()
-                    .child(USER_STATES)
-                    .child(uid)
-                    .child(telolet.getRequesterUid())
-                    .setValue(new UserState(telolet.getId(), UserState.PENDING_RECEIVED));
-
-        } else {
-            final long timeout = FirebaseRemoteConfig.getInstance().getLong(RESPONSE_TIMEOUT_SECONDS);
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onChildAdded: pending request SENT. Timeout of %d seconds for %s", timeout, telolet));
+        if (telolet.isState(Telolet.STATE_PENDING)) {
+            // Fetch remote config every time to adjust to new potential changes during service lifetime
+            final long timeout = FirebaseRemoteConfig.getInstance().getLong(TELOLET_TIMEOUT_SECONDS);
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
+                    "onChildAdded: Timeout of %d seconds for received %s", timeout, telolet));
 
             final TimerTask timerTask = makeTimeoutTaskFor(telolet);
             mRequestTimeoutHandler.schedule(timerTask, timeout * 1000);
             mRequestTimeoutMap.put(telolet.getId(), timerTask);
+            makeNotification();
         }
     }
 
     @Override
     public void onChildChanged(final DataSnapshot snapshot, final String previousChildName) {
-        // N/A
+        final Telolet telolet = snapshot.getValue(Telolet.class);
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildChanged: " + telolet);
     }
 
     @Override
     public void onChildRemoved(final DataSnapshot snapshot) {
         final Telolet telolet = snapshot.getValue(Telolet.class);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: " + telolet);
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        assert firebaseUser != null;
-        final String currUid = firebaseUser.getUid();
 
-        if (telolet.getReceiverUid().equals(currUid)) {
-            mPendingRequestCounter -= 1;
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: Pending request count reduced to: " + mPendingRequestCounter);
-            makeNotification();
-        } else if (mRequestTimeoutMap.containsKey(telolet.getId())) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: Telolet not reached timeout yet. Resolve: " + telolet);
+        if (mRequestTimeoutMap.containsKey(telolet.getId())) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: Telolet not reached timeout yet. Remove the timeout for: " + telolet);
             mRequestTimeoutMap.get(telolet.getId()).cancel();
             mRequestTimeoutMap.remove(telolet.getId());
-
-            final String otherUid = telolet.getReceiverUid();
-            final UserState userState = new UserState(telolet.getId(), RESOLVED);
-            FirebaseDatabase.getInstance().getReference(USER_STATES).child(currUid).child(otherUid).setValue(userState);
         } else {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: Telolet already resolved or timeout: " + telolet);
         }
+
+        mPendingRequestCounter -= 1;
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildRemoved: Pending request count reduced to: " + mPendingRequestCounter);
     }
 
     @Override
@@ -185,12 +151,17 @@ public class TeloletBackgroundService extends Service implements FirebaseAuth.Au
 
                 // Create a timeout record
                 final String teloletId = telolet.getId();
-                final String otherUid = telolet.getReceiverUid();
-                final String currUid = telolet.getRequesterUid();
+                final String otherUid = telolet.getRequesterUid();
+                final String currUid = telolet.getReceiverUid();
+
+                telolet.setState(Telolet.STATE_TIMEOUT);
                 final Map<String, Object> updatesMap = new HashMap<>();
-                updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_SENT, currUid, teloletId, Telolet.ATTR_RESOLVED_AT), ServerValue.TIMESTAMP);
-                updatesMap.put(String.format("/%s/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, otherUid, teloletId, Telolet.ATTR_RESOLVED_AT), ServerValue.TIMESTAMP);
-                updatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), null); // Remove state from this user view
+
+                updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, currUid, teloletId), telolet.toValueMap());
+                updatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_SENT, otherUid, teloletId), telolet.toValueMap());
+                updatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), null);
+                updatesMap.put(String.format("/%s/%s/%s", USER_STATES, otherUid, currUid), null);
+
                 FirebaseDatabase.getInstance().getReference().updateChildren(updatesMap);
             }
         };

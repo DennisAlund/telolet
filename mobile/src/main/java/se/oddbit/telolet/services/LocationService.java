@@ -22,7 +22,11 @@ import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.crash.FirebaseCrash;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.MutableData;
+import com.google.firebase.database.Transaction;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.Locale;
@@ -35,9 +39,9 @@ import static se.oddbit.telolet.util.Constants.Analytics.Param.OLC;
 import static se.oddbit.telolet.util.Constants.Analytics.UserProperty.GAME_LEVEL;
 import static se.oddbit.telolet.util.Constants.Analytics.UserProperty.USER_LOCATION;
 import static se.oddbit.telolet.util.Constants.Database.USERS;
-import static se.oddbit.telolet.util.Constants.RemoteConfig.FASTEST_LOCATION_UPDATE_INTERVAL;
-import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_INTERVAL;
-import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATES_THRESHOLD_METERS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_FASTEST_UPDATE_SECONDS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATE_SECONDS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.LOCATION_UPDATE_METERS;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.OLC_BOX_SIZE;
 
 public class LocationService extends Service implements FirebaseAuth.AuthStateListener,
@@ -105,9 +109,13 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
         }
 
         final Location lastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        final OpenLocationCode olc = new OpenLocationCode(lastLocation.getLatitude(), lastLocation.getLongitude());
-        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "onConnected: No current location. Using last known location: " + olc.getCode());
-        saveLocation(olc);
+        if (lastLocation != null) {
+            final OpenLocationCode olc = new OpenLocationCode(lastLocation.getLatitude(), lastLocation.getLongitude());
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Starting updates. Using last known location: " + olc.getCode());
+            saveLocation(olc);
+        } else {
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Starting updates. No last known location.");
+        }
 
         startLocationUpdates();
     }
@@ -150,12 +158,13 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
         final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: firebaseUser=" + firebaseUser);
         if (firebaseUser == null) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: User has been logged out. Stop service.");
             stopSelf();
         }
     }
 
     private void restartLocationUpdates() {
-        if (mGoogleApiClient.isConnected()) {
+        if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
             stopLocationUpdates();
             startLocationUpdates();
         }
@@ -166,7 +175,7 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
             return;
         }
 
-        if (!mGoogleApiClient.isConnected()) {
+        if (mGoogleApiClient != null && !mGoogleApiClient.isConnected()) {
             FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "Tried to start location updates, but Google API client is not connected!!!");
             return;
         }
@@ -181,17 +190,17 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
         mRequestingLocationUpdates = true;
 
         final LocationRequest locationRequest = new LocationRequest();
-        final float thresholdMeters = (float) mRemoteConfig.getDouble(LOCATION_UPDATES_THRESHOLD_METERS);
-        final long updatesInterval = mRemoteConfig.getLong(LOCATION_UPDATES_INTERVAL);
-        final long fastestUpdatesInterval = mRemoteConfig.getLong(FASTEST_LOCATION_UPDATE_INTERVAL);
+        final float thresholdMeters = (float) mRemoteConfig.getDouble(LOCATION_UPDATE_METERS);
+        final long updatesInterval = mRemoteConfig.getLong(LOCATION_UPDATE_SECONDS);
+        final long fastestUpdatesInterval = mRemoteConfig.getLong(LOCATION_FASTEST_UPDATE_SECONDS);
 
         FirebaseCrash.logcat(Log.INFO, LOG_TAG, String.format(Locale.getDefault(),
                 "Starting location updates with a threshold of %.2f meters or about %d seconds interval (no faster than %d seconds)",
-                thresholdMeters, updatesInterval / 1000, fastestUpdatesInterval / 1000));
+                thresholdMeters, updatesInterval, fastestUpdatesInterval));
 
         locationRequest.setSmallestDisplacement(thresholdMeters);
-        locationRequest.setInterval(updatesInterval);
-        locationRequest.setFastestInterval(fastestUpdatesInterval);
+        locationRequest.setInterval(updatesInterval * 1000);
+        locationRequest.setFastestInterval(fastestUpdatesInterval * 1000);
         locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
 
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, locationRequest, this);
@@ -220,7 +229,6 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
         mGoogleApiClient.connect();
     }
 
-
     private void saveLocation(final OpenLocationCode newLocation) {
         final String locationCode = newLocation == null ? null : newLocation.getCode();
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
@@ -232,6 +240,34 @@ public class LocationService extends Service implements FirebaseAuth.AuthStateLi
 
         final String uid = firebaseUser.getUid();
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: olc=%s, user=%s", locationCode, uid));
-        FirebaseDatabase.getInstance().getReference(USERS).child(uid).child(User.ATTR_LOCATION).setValue(locationCode);
+        FirebaseDatabase.getInstance().getReference(USERS).child(uid).runTransaction(new Transaction.Handler() {
+            @Override
+            public Transaction.Result doTransaction(final MutableData mutableData) {
+                final User user = mutableData.getValue(User.class);
+                if (user == null) {
+                    FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation:doTransaction: will retry, user=%s is not yet set", uid));
+                    return Transaction.success(mutableData);
+                }
+
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation:doTransaction: set new location=%s for user=%s", locationCode, uid));
+                user.setLocation(locationCode);
+                mutableData.setValue(user);
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(final DatabaseError error, final boolean committed, final DataSnapshot snapshot) {
+                if (error != null) {
+                    FirebaseCrash.logcat(Log.ERROR, LOG_TAG, error.getMessage());
+                    FirebaseCrash.report(error.toException());
+                    return;
+                }
+
+                if (committed && snapshot.exists()) {
+                    final User user = snapshot.getValue(User.class);
+                    FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format("saveLocation: transaction committed new location %s for %s", user.getLocation(), user));
+                }
+            }
+        });
     }
 }

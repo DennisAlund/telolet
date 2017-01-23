@@ -55,7 +55,7 @@
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_directions_bus_black_24dp"/>
+            android:resource="@drawable/ic_directions_bus_white_24dp"/>
 
         <activity
             android:name=".activities.InviteFriendsActivity"
@@ -68,7 +68,7 @@
         </activity>
 
         <service
-            android:name=".services.TeloletBackgroundService"
+            android:name=".services.TeloletReceivedRequestService"
             android:enabled="true"
             android:exported="false">
         </service>
@@ -85,6 +85,11 @@
             android:name=".services.PlayTeloletService"
             android:enabled="true"
             android:exported="false">
+        </service>
+        <service
+            android:name=".services.TeloletSentRequestService"
+            android:enabled="true"
+            android:exported="true">
         </service>
     </application>
 

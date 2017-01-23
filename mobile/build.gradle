@@ -8,8 +8,8 @@ android {
         applicationId "se.oddbit.telolet"
         minSdkVersion 16
         targetSdkVersion 25
-        versionName "0.6.1"
-        versionCode 11
+        versionName "0.8.0"
+        versionCode 14
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -23,12 +23,14 @@ android {
             minifyEnabled false
             debuggable true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-dev'
         }
     }
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })

@@ -24,7 +24,7 @@ public class TeloletApplication extends Application {
         FirebaseDatabase.getInstance().setPersistenceEnabled(true);
 
         if (BuildConfig.DEBUG) {
-            FirebaseDatabase.getInstance().setLogLevel(Logger.Level.INFO);
+            FirebaseDatabase.getInstance().setLogLevel(Logger.Level.DEBUG);
         }
 
         // Remote configuration

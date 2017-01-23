@@ -14,9 +14,7 @@ import com.google.firebase.crash.FirebaseCrash;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.ArrayList;
@@ -27,12 +25,9 @@ import java.util.Map;
 
 import se.oddbit.telolet.R;
 import se.oddbit.telolet.models.User;
-import se.oddbit.telolet.models.UserState;
 import se.oddbit.telolet.viewHolders.AdViewHolder;
 import se.oddbit.telolet.viewHolders.UserViewHolder;
 
-import static se.oddbit.telolet.models.UserState.PENDING_RECEIVED;
-import static se.oddbit.telolet.util.Constants.Database.USER_STATES;
 import static se.oddbit.telolet.util.Constants.RemoteConfig.LIST_AD_FREQUENCY;
 
 public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> implements ChildEventListener {
@@ -40,22 +35,15 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
     private static final int VIEW_TYPE_AD = 0xAD;
     private static final int VIEW_TYPE_DEFAULT = 0xDEF;
 
-    public interface EmptyStateListener {
-        void onEmptyState();
-
-        void onNonEmptyState();
-    }
-
     private int mAdFrequency;
     private Query mQuery;
     private User mUser;
-    private ValueEventListener mUserPendingRequestListener;
 
     private final Context mContext;
     private final Object mListItemsLock = new Object();
     private final List<String> mItemIds = new ArrayList<>();
+    private final List<String> mFocusItemIds = new ArrayList<>();
     private final Map<String, User> mUserMap = new HashMap<>();
-    private final List<EmptyStateListener> mEmptyStateListeners = new ArrayList<>();
 
     public FirebaseUserRecyclerAdapter(final Context context) {
         mContext = context;
@@ -76,7 +64,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         }
     }
 
-
     @Override
     public int getItemViewType(final int position) {
         return isAdPosition(position) ? VIEW_TYPE_AD : VIEW_TYPE_DEFAULT;
@@ -92,7 +79,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         }
 
         final UserViewHolder userViewHolder = (UserViewHolder) viewHolder;
-        final String listItemId = mItemIds.get(getOffsetPosition(position));
+        final String listItemId = mItemIds.get(getItemPositionWithoutAds(position));
         final User user = mUserMap.get(listItemId);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "onBindViewHolder %s at position %d", user, position));
         userViewHolder.bind(user);
@@ -117,34 +104,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         if (mQuery != null) {
             mQuery.addChildEventListener(this);
         }
-
-        mUserPendingRequestListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(final DataSnapshot snapshot) {
-                FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "onDataChange: number of user states: " + snapshot.getChildrenCount());
-                for (final DataSnapshot userStateSnapshot : snapshot.getChildren()) {
-                    moveToTop(userStateSnapshot.getKey());
-                }
-
-                recyclerView.scrollToPosition(0);
-            }
-
-            @Override
-            public void onCancelled(final DatabaseError error) {
-                FirebaseCrash.logcat(Log.ERROR, LOG_TAG, "User state listener: " + error.getMessage());
-                FirebaseCrash.report(error.toException());
-            }
-        };
-
-        final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        assert firebaseUser != null;
-
-        FirebaseDatabase.getInstance()
-                .getReference(USER_STATES)
-                .child(firebaseUser.getUid())
-                .orderByChild(UserState.ATTR_STATE)
-                .equalTo(PENDING_RECEIVED)
-                .addValueEventListener(mUserPendingRequestListener);
     }
 
     /**
@@ -160,12 +119,6 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         assert firebaseUser != null;
 
         mQuery.removeEventListener(this);
-        FirebaseDatabase.getInstance()
-                .getReference(USER_STATES)
-                .child(firebaseUser.getUid())
-                .orderByChild(UserState.ATTR_STATE)
-                .equalTo(PENDING_RECEIVED)
-                .removeEventListener(mUserPendingRequestListener);
     }
 
     /**
@@ -177,11 +130,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
      */
     @Override
     public int getItemCount() {
-        if (mAdFrequency <= 0) {
-            return mItemIds.size();
-        }
-
-        return mItemIds.size() + mItemIds.size() / (mAdFrequency - 1);
+        return getItemPositionWithAds(mItemIds.size());
     }
 
 
@@ -239,8 +188,8 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
 
     public void setQuery(final Query query) {
         mAdFrequency = Integer.parseInt(FirebaseRemoteConfig.getInstance().getString(LIST_AD_FREQUENCY));
-        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG,
-                String.format(Locale.getDefault(), "setQuery: new query, ads every %d list item", mAdFrequency));
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
+                "setQuery: new query, showing ads every %d list item", mAdFrequency));
 
         if (mQuery != null) {
             mQuery.removeEventListener(this);
@@ -251,35 +200,36 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         mQuery.addChildEventListener(this);
     }
 
-    public void addEmptyStateListener(final EmptyStateListener emptyStateListener) {
-        mEmptyStateListeners.add(emptyStateListener);
+    public void addFocusUser(final String uid) {
+        mFocusItemIds.add(uid);
+        moveToTop(uid);
     }
 
-    public void removeEmptyStateListener(final EmptyStateListener emptyStateListener) {
-        mEmptyStateListeners.remove(emptyStateListener);
+    public void removeFocusUser(final String uid) {
+        mFocusItemIds.remove(uid);
     }
 
     private void moveToTop(@NonNull final String uid) {
         synchronized (mListItemsLock) {
-            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Adding moving user to the top: " + uid);
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "moveToTop: uid=" + uid);
             final int originalPosition = mItemIds.indexOf(uid);
             if (originalPosition > 0) {
                 // Only move if the item is present and not already on top
-                mItemIds.remove(originalPosition);
+                mItemIds.remove(uid);
                 mItemIds.add(0, uid);
-                notifyItemMoved(originalPosition, 0);
+                notifyItemMoved(getItemPositionWithAds(originalPosition), 0);
+            } else {
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "moveToTop: user not in list uid=" + uid);
             }
         }
     }
 
-    private void clear() {
+    public void clear() {
         synchronized (mListItemsLock) {
+            final int numItems = getItemCount();
             mItemIds.clear();
             mUserMap.clear();
-            notifyDataSetChanged();
-            for (EmptyStateListener emptyStateListener : mEmptyStateListeners) {
-                emptyStateListener.onEmptyState();
-            }
+            notifyItemRangeRemoved(0, numItems);
         }
     }
 
@@ -289,7 +239,7 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
             final int changedUserIndex = mItemIds.indexOf(user.getUid());
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(), "Updating %s at pos=%d", user, changedUserIndex));
             if (changedUserIndex >= 0) {
-                notifyItemChanged(changedUserIndex);
+                notifyItemChanged(getItemPositionWithAds(changedUserIndex));
             }
         }
     }
@@ -297,31 +247,25 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
     private void addUser(@NonNull final User user) {
         synchronized (mListItemsLock) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Adding user to internal records: " + user);
-            mItemIds.add(user.getUid());
-            mUserMap.put(user.getUid(), user);
-            if (mItemIds.size() == 1) {
-                // Only do this if it goes from ZERO to ONE
-                for (EmptyStateListener emptyStateListener : mEmptyStateListeners) {
-                    emptyStateListener.onNonEmptyState();
-                }
+            if (mFocusItemIds.contains(user.getUid())) {
+                mItemIds.add(0, user.getUid());
+            } else {
+                mItemIds.add(user.getUid());
             }
 
-            notifyDataSetChanged();
+            mUserMap.put(user.getUid(), user);
+            final int indexOfAddedItem = mItemIds.indexOf(user.getUid());
+            notifyItemInserted(getItemPositionWithAds(indexOfAddedItem));
         }
     }
 
     private void removeUser(@NonNull final User user) {
         synchronized (mListItemsLock) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Removing user from internal records: " + user);
+            final int indexOfRemovedItem = mItemIds.indexOf(user.getUid());
             mItemIds.remove(user.getUid());
             mUserMap.remove(user.getUid());
-            if (mItemIds.size() == 0) {
-                for (EmptyStateListener emptyStateListener : mEmptyStateListeners) {
-                    emptyStateListener.onEmptyState();
-                }
-            }
-
-            notifyDataSetChanged();
+            notifyItemRemoved(getItemPositionWithAds(indexOfRemovedItem));
         }
     }
 
@@ -329,10 +273,30 @@ public class FirebaseUserRecyclerAdapter extends RecyclerView.Adapter<RecyclerVi
         return mAdFrequency > 0 && (position % mAdFrequency) == (mAdFrequency - 1);
     }
 
-    private int getOffsetPosition(final int position) {
+    /**
+     * Recalculate teh position of an item with respect to injected ads in the list
+     *
+     * @param position An item position including injected ads
+     * @return the actual position of an item, not counting the ads.
+     */
+    private int getItemPositionWithoutAds(final int position) {
         if (mAdFrequency <= 0) {
             return position;
         }
         return position - position / mAdFrequency;
+    }
+
+    /**
+     * Recalculate teh position of an item with respect to injected ads in the list
+     *
+     * @param position An item position excluding injected ads
+     * @return the position of an item, including counting the ads.
+     */
+    private int getItemPositionWithAds(final int position) {
+        if (mAdFrequency <= 0) {
+            return position;
+        }
+
+        return position + position / (mAdFrequency - 1);
     }
 }

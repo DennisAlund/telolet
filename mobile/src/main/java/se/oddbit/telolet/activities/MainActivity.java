@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -31,14 +32,16 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import se.oddbit.telolet.BuildConfig;
-import se.oddbit.telolet.fragments.MainActivityFragment;
 import se.oddbit.telolet.R;
+import se.oddbit.telolet.broadcast.CloudMessagesBroadcastReceiver;
+import se.oddbit.telolet.fragments.MainActivityFragment;
 import se.oddbit.telolet.models.User;
 import se.oddbit.telolet.services.CloudMessagingInstanceIdService;
 import se.oddbit.telolet.services.CloudMessagingService;
 import se.oddbit.telolet.services.LocationService;
 import se.oddbit.telolet.services.PlayTeloletService;
-import se.oddbit.telolet.services.TeloletBackgroundService;
+import se.oddbit.telolet.services.TeloletReceivedRequestService;
+import se.oddbit.telolet.services.TeloletSentRequestService;
 
 import static se.oddbit.telolet.util.Constants.Database.USERS;
 
@@ -46,6 +49,7 @@ public class MainActivity extends AppCompatActivity
         implements ValueEventListener, FirebaseAuth.AuthStateListener, GoogleApiClient.OnConnectionFailedListener, ResultCallback<AppInviteInvitationResult> {
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
 
+    private CloudMessagesBroadcastReceiver mBroadcastReceiver;
     private User mCurrentUser;
 
     @Override
@@ -54,6 +58,8 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        mBroadcastReceiver = new CloudMessagesBroadcastReceiver(this);
 
         // First make sure we listen to user change objects, then try to login and fetch them
         final GoogleApiClient googleApiClient = new GoogleApiClient.Builder(this)
@@ -66,14 +72,16 @@ public class MainActivity extends AppCompatActivity
         startService(new Intent(this, CloudMessagingInstanceIdService.class));
         startService(new Intent(this, CloudMessagingService.class));
         startService(new Intent(this, LocationService.class));
-        startService(new Intent(this, TeloletBackgroundService.class));
-        startService(new Intent(this, TeloletBackgroundService.class));
+        startService(new Intent(this, TeloletReceivedRequestService.class));
+        startService(new Intent(this, TeloletSentRequestService.class));
         startService(new Intent(this, PlayTeloletService.class));
     }
 
     @Override
     protected void onPause() {
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onPause");
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
+        mBroadcastReceiver.unregister();
         FirebaseAuth.getInstance().removeAuthStateListener(this);
         stopCurrentUserListener();
         super.onPause();
@@ -85,6 +93,7 @@ public class MainActivity extends AppCompatActivity
         FirebaseCrash.logcat(Log.VERBOSE, LOG_TAG, "onResume");
         startCurrentUserListener();
         FirebaseAuth.getInstance().addAuthStateListener(this);
+        mBroadcastReceiver.register();
     }
 
     @Override
@@ -122,7 +131,8 @@ public class MainActivity extends AppCompatActivity
                     @Override
                     public void onComplete(@NonNull final Task<Void> task) {
                         PreferenceManager.getDefaultSharedPreferences(context).edit().clear().apply();
-                        killActivity();
+                        startActivity(new Intent(MainActivity.this, LaunchActivity.class));
+                        finish();
                     }
                 });
                 return true;
@@ -142,7 +152,8 @@ public class MainActivity extends AppCompatActivity
         final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
         if (firebaseUser == null) {
             FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: NOT LOGGED IN");
-            killActivity();
+            startActivity(new Intent(this, LaunchActivity.class));
+            finish();
             return;
         }
 
@@ -167,7 +178,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onConnectionFailed(@NonNull final ConnectionResult connectionResult) {
         FirebaseCrash.logcat(Log.ERROR, LOG_TAG, connectionResult.getErrorMessage());
-        killActivity();
+        finish();
     }
 
     @Override
@@ -235,14 +246,5 @@ public class MainActivity extends AppCompatActivity
         }
 
         mainActivityFragment.setCurrentUser(mCurrentUser);
-    }
-
-    private void killActivity() {
-        FirebaseCrash.logcat(Log.INFO, LOG_TAG, "Killing the activity");
-        stopService(new Intent(this, CloudMessagingInstanceIdService.class));
-        stopService(new Intent(this, CloudMessagingService.class));
-        stopService(new Intent(this, LocationService.class));
-        stopService(new Intent(this, TeloletBackgroundService.class));
-        stopService(new Intent(this, PlayTeloletService.class));
     }
 }

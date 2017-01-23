@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -19,12 +20,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import se.oddbit.telolet.R;
+import se.oddbit.telolet.models.Telolet;
 import se.oddbit.telolet.models.UserState;
 
-import static se.oddbit.telolet.models.UserState.RESOLVED;
+import static se.oddbit.telolet.util.Constants.Database.TELOLET_REQUESTS_RECEIVED;
+import static se.oddbit.telolet.util.Constants.Database.TELOLET_REQUESTS_SENT;
 import static se.oddbit.telolet.util.Constants.Database.USER_STATES;
 
-public class PlayTeloletService extends Service implements ChildEventListener, MediaPlayer.OnCompletionListener {
+public class PlayTeloletService extends Service implements FirebaseAuth.AuthStateListener, ChildEventListener, MediaPlayer.OnCompletionListener {
     private static final String LOG_TAG = PlayTeloletService.class.getSimpleName();
 
     private final Object mStateLock = new Object();
@@ -49,11 +52,12 @@ public class PlayTeloletService extends Service implements ChildEventListener, M
         final FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         assert firebaseUser != null;
 
+        // Only play on the device that receives the telolet (the one sending request)
         mUserStatesRef = FirebaseDatabase.getInstance()
                 .getReference(USER_STATES)
                 .child(firebaseUser.getUid())
                 .orderByChild(UserState.ATTR_STATE)
-                .equalTo(RESOLVED);
+                .equalTo(UserState.TELOLET_RECEIVED);
 
         super.onCreate();
     }
@@ -93,6 +97,15 @@ public class PlayTeloletService extends Service implements ChildEventListener, M
     }
 
     @Override
+    public void onAuthStateChanged(@NonNull final FirebaseAuth firebaseAuth) {
+        final FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onAuthStateChanged: firebaseUser=" + firebaseUser);
+        if (firebaseUser == null) {
+            stopSelf();
+        }
+    }
+
+    @Override
     public void onChildAdded(final DataSnapshot snapshot, final String previousChildName) {
         final UserState userState = snapshot.getValue(UserState.class);
         FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "onChildAdded: " + userState);
@@ -103,9 +116,17 @@ public class PlayTeloletService extends Service implements ChildEventListener, M
             return;
         }
 
+        final String currUid = firebaseUser.getUid();
+        final String otherUid = snapshot.getKey();
+        final Telolet telolet = userState.getTelolet();
+        telolet.setState(Telolet.STATE_RESOLVED);
+
         synchronized (mStateLock) {
             // Collect all user states that get resolved while playing the song. Update all at once afterwards.
-            mResolvedStatesMap.put(String.format("/%s/%s/%s", USER_STATES, firebaseUser.getUid(), snapshot.getKey()), null);
+            mResolvedStatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_SENT, currUid, telolet.getId()), telolet.toValueMap());
+            mResolvedStatesMap.put(String.format("/%s/%s/%s", TELOLET_REQUESTS_RECEIVED, otherUid, telolet.getId()), telolet.toValueMap());
+            mResolvedStatesMap.put(String.format("/%s/%s/%s", USER_STATES, currUid, otherUid), null);
+            mResolvedStatesMap.put(String.format("/%s/%s/%s", USER_STATES, otherUid, currUid), null);
             if (mIsPlaying) {
                 return;
             }

@@ -1,5 +1,8 @@
 package se.oddbit.telolet.models;
 
+import android.support.annotation.NonNull;
+
+import com.google.firebase.database.Exclude;
 import com.google.firebase.database.IgnoreExtraProperties;
 import com.google.firebase.database.ServerValue;
 
@@ -9,21 +12,28 @@ import java.util.Map;
 
 @IgnoreExtraProperties
 public class Telolet {
-    public static final String ATTR_RESOLVED_AT = "resolvedAt";
-    public static final String ATTR_RESOLVE_LOCATION = "resolveLocation";
+    public static final String ATTR_STATE = "state";
+
+    public static final String STATE_RESOLVED = "0:resolved";
+    public static final String STATE_TIMEOUT = "0:timeout";
+    public static final String STATE_PENDING = "1:pending";
+    public static final String STATE_REPLIED = "2:replied";
 
     private String mId;
     private String mRequesterUid;
     private String mReceiverUid;
     private String mRequestLocation;
     private String mResolveLocation;
-    private Long mRequestedAt;
-    private Long mResolvedAt;
+    private Long mCreated;
+    private Long mModified;
+    private String mState;
 
     public Telolet() {
+        mState = STATE_PENDING;
     }
 
     public Telolet(final String id) {
+        super();
         mId = id;
     }
 
@@ -67,20 +77,47 @@ public class Telolet {
         mResolveLocation = resolveLocation;
     }
 
-    public Long getRequestedAt() {
-        return mRequestedAt;
+    public Long getCreated() {
+        return mCreated;
     }
 
-    public void setRequestedAt(final Long requestedAt) {
-        mRequestedAt = requestedAt;
+    public void setCreated(final Long created) {
+        mCreated = created;
     }
 
-    public Long getResolvedAt() {
-        return mResolvedAt;
+    public Long getModified() {
+        return mModified;
     }
 
-    public void setResolvedAt(final Long resolvedAt) {
-        mResolvedAt = resolvedAt;
+    public void setModified(final Long modified) {
+        mModified = modified;
+    }
+
+    public String getState() {
+        return mState;
+    }
+
+    public void setState(final String state) {
+        switch (state) {
+            case STATE_RESOLVED:
+            case STATE_TIMEOUT:
+            case STATE_REPLIED:
+            case STATE_PENDING:
+                mState = state;
+                break;
+            default:
+                mState = null;
+        }
+    }
+
+    @Exclude
+    public boolean isInProgress() {
+        return mState != null && !mState.startsWith("0:");
+    }
+
+    @Exclude
+    public boolean isState(@NonNull final String state) {
+        return mState != null && mState.equals(state);
     }
 
     @Override
@@ -88,14 +125,19 @@ public class Telolet {
         return String.format(Locale.getDefault(), "%s{id: %s}", Telolet.class.getSimpleName(), mId);
     }
 
-    public Map<String, Object> toNewRequestMap() {
+    public Map<String, Object> toValueMap() {
         final Map<String, Object> map = new HashMap<>();
 
         map.put("id", mId);
+        map.put("state", mState);
+        map.put("created", mCreated == null ? ServerValue.TIMESTAMP : mCreated);
+        map.put("modified", ServerValue.TIMESTAMP);
+
         map.put("requesterUid", mRequesterUid);
-        map.put("receiverUid", mReceiverUid);
         map.put("requestLocation", mRequestLocation);
-        map.put("requestedAt", ServerValue.TIMESTAMP);
+
+        map.put("receiverUid", mReceiverUid);
+        map.put("resolveLocation", mReceiverUid);
 
         return map;
     }

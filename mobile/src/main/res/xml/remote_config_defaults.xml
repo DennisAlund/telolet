@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <defaultsMap>
     <entry>
-        <key>LOCATION_UPDATES_THRESHOLD_METERS</key>
+        <key>LOCATION_UPDATE_METERS</key>
         <value>100</value>
     </entry>
     <entry>
-        <key>LOCATION_UPDATES_INTERVAL</key>
-        <value>1800000</value>
+        <key>LOCATION_UPDATE_SECONDS</key>
+        <value>300</value>
     </entry>
     <entry>
-        <key>FASTEST_LOCATION_UPDATE_INTERVAL</key>
-        <value>30000</value>
+        <key>LOCATION_FASTEST_UPDATE_SECONDS</key>
+        <value>15</value>
     </entry>
     <entry>
         <key>OLC_BOX_SIZE</key>
@@ -25,7 +25,7 @@
         <value>4</value>
     </entry>
     <entry>
-        <key>RESPONSE_TIMEOUT_SECONDS</key>
+        <key>TELOLET_TIMEOUT_SECONDS</key>
         <value>60</value>
     </entry>
 </defaultsMap>
