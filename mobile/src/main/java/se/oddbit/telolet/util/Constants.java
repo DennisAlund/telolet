@@ -31,6 +31,7 @@ public final class Constants {
     }
 
     public static final class RemoteConfig {
+        public static final String MIN_REQUIRED_VERSION = "MIN_REQUIRED_VERSION";
         public static final String TELOLET_TIMEOUT_SECONDS = "TELOLET_TIMEOUT_SECONDS";
         public static final String TEST_GROUP = "TEST_GROUP";
         public static final String LIST_AD_FREQUENCY = "LIST_AD_FREQUENCY";

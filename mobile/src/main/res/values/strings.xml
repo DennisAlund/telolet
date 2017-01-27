@@ -27,4 +27,7 @@
     <string name="e">E</string>
     <string name="l">L</string>
     <string name="o">O</string>
+    <string name="update_required_title">Required Update</string>
+    <string name="update_required_message">Your app version is outdated. Update to the latest version to continue playing.</string>
+    <string name="update_app_button_text">Update now</string>
 </resources>

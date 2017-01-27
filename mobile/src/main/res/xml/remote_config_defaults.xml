@@ -28,5 +28,9 @@
         <key>TELOLET_TIMEOUT_SECONDS</key>
         <value>60</value>
     </entry>
+    <entry>
+        <key>MIN_REQUIRED_VERSION</key>
+        <value>0</value>
+    </entry>
 </defaultsMap>
 

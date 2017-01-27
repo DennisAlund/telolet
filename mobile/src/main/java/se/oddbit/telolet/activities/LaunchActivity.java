@@ -1,10 +1,13 @@
 package se.oddbit.telolet.activities;
 
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -24,9 +27,11 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import se.oddbit.telolet.BuildConfig;
 import se.oddbit.telolet.R;
@@ -35,6 +40,7 @@ import se.oddbit.telolet.models.User;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static se.oddbit.telolet.R.string.progress_loading;
 import static se.oddbit.telolet.util.Constants.Database.USERS;
+import static se.oddbit.telolet.util.Constants.RemoteConfig.MIN_REQUIRED_VERSION;
 
 public class LaunchActivity extends AppCompatActivity
         implements View.OnClickListener, FirebaseAuth.AuthStateListener, ValueEventListener {
@@ -46,6 +52,8 @@ public class LaunchActivity extends AppCompatActivity
             android.Manifest.permission.ACCESS_COARSE_LOCATION
     };
 
+    private boolean mGotUserInformation;
+    private boolean mGotRemoteConfig;
     private ProgressDialog mProgressDialog;
 
     @Override
@@ -57,6 +65,16 @@ public class LaunchActivity extends AppCompatActivity
         checkLocationPermissions();
 
         findViewById(R.id.anonymous_login_button).setVisibility(BuildConfig.DEBUG ? View.VISIBLE : View.GONE);
+        FirebaseRemoteConfig.getInstance().fetch().addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull final Task<Void> task) {
+                FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Got remote configuration");
+                mGotRemoteConfig = task.isSuccessful();
+                FirebaseRemoteConfig.getInstance().activateFetched();
+                tryStartMainActivity();
+            }
+        });
+
         if (!BuildConfig.DEBUG) {
             startSignInProcess();
         }
@@ -159,10 +177,9 @@ public class LaunchActivity extends AppCompatActivity
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull final Task<Void> task) {
-                        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting main activity");
-                        hideProgressDialog();
-                        startActivity(new Intent(LaunchActivity.this, MainActivity.class));
-                        finish();
+                        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "User data is loaded and last login updated.");
+                        mGotUserInformation = true;
+                        tryStartMainActivity();
                     }
                 });
     }
@@ -186,6 +203,41 @@ public class LaunchActivity extends AppCompatActivity
         }
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    private void tryStartMainActivity() {
+        if (!mGotRemoteConfig || !mGotUserInformation) {
+            FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "tryStartMainActivity: all data is not ready yet.");
+            return;
+        }
+
+        final long minRequiredVersion = FirebaseRemoteConfig.getInstance().getLong(MIN_REQUIRED_VERSION);
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, String.format(Locale.getDefault(),
+                "Checking if the current app version %d >= min required version %d to be able to proceed", BuildConfig.VERSION_CODE, minRequiredVersion));
+
+        if (BuildConfig.VERSION_CODE < minRequiredVersion) {
+            FirebaseCrash.logcat(Log.WARN, LOG_TAG, String.format(Locale.getDefault(),
+                    "The current app version %d is no longer supported. Update to the latest version!", BuildConfig.VERSION_CODE));
+
+            final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this)
+                    .setTitle(R.string.update_required_title)
+                    .setMessage(R.string.update_required_message)
+                    .setPositiveButton(R.string.update_app_button_text, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(final DialogInterface dialogInterface, final int i) {
+                            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=se.oddbit.telolet")));
+                            finish();
+                        }
+                    });
+
+            alertDialogBuilder.create().show();
+            return;
+        }
+
+        FirebaseCrash.logcat(Log.DEBUG, LOG_TAG, "Starting main activity");
+        hideProgressDialog();
+        startActivity(new Intent(LaunchActivity.this, MainActivity.class));
+        finish();
     }
 
     private void startSignInProcess() {
