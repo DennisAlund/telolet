@@ -15,6 +15,7 @@ import static se.oddbit.telolet.models.User.DefaultValues.colors;
 
 @IgnoreExtraProperties
 public class User {
+    public static final String ATTR_HANDLE = "handle";
     public static final String ATTR_LAST_LOGIN = "lastLogin";
     public static final String ATTR_LOCATION = "location";
 

@@ -4,6 +4,12 @@
       tools:context="se.oddbit.telolet.activities.MainActivity">
 
     <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="5"
+        android:title="@string/action_settings"
+        app:showAsAction="never"/>
+
+    <item
         android:id="@+id/action_fetch_remote_config"
         android:orderInCategory="50"
         android:title="@string/menu_fetch_remote_config"

@@ -30,4 +30,10 @@
     <string name="update_required_title">Required Update</string>
     <string name="update_required_message">Your app version is outdated. Update to the latest version to continue playing.</string>
     <string name="update_app_button_text">Update now</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="pref_title_app_version">Version</string>
+    <string name="pref_title_user_handle">Name</string>
+    <string name="action_settings">Settings</string>
+    <string name="pref_category_application">Application</string>
+    <string name="pref_category_user_profile">User profile</string>
 </resources>

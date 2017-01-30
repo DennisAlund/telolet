@@ -1,0 +1,30 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:capitalize="words"
+        android:title="@string/pref_category_user_profile">
+
+        <EditTextPreference
+            android:inputType="text"
+            android:key="@string/pref_user_handle"
+            android:maxLines="1"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="@string/pref_title_user_handle"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:capitalize="words"
+        android:title="@string/pref_category_application">
+
+        <Preference
+            android:capitalize="words"
+            android:editable="false"
+            android:inputType="textCapWords"
+            android:key="@string/pref_app_version"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:title="@string/pref_title_app_version"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>
