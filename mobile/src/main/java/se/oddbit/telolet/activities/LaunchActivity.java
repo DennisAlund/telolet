@@ -16,6 +16,8 @@ import android.widget.Toast;
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.ui.ResultCodes;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -45,6 +47,7 @@ import static se.oddbit.telolet.util.Constants.RemoteConfig.MIN_REQUIRED_VERSION
 public class LaunchActivity extends AppCompatActivity
         implements View.OnClickListener, FirebaseAuth.AuthStateListener, ValueEventListener {
     private static final String LOG_TAG = LaunchActivity.class.getSimpleName();
+    private static final int RC_PLAY_SERVICES = 1;
     private static final int RC_SIGN_IN = 42;
     private static final int RC_LOCATION_PERMISSIONS = 0x10c;
     private static final String[] LOCATION_PERMISSIONS = new String[]{
@@ -74,6 +77,11 @@ public class LaunchActivity extends AppCompatActivity
                 tryStartMainActivity();
             }
         });
+
+        if (!isGooglePlayServicesUpToDate()) {
+            // Stop here if Google play services are not up to date
+            return;
+        }
 
         if (!BuildConfig.DEBUG) {
             startSignInProcess();
@@ -286,6 +294,20 @@ public class LaunchActivity extends AppCompatActivity
 
         if (!hasPermissions) {
             ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, RC_LOCATION_PERMISSIONS);
+        }
+    }
+
+    private boolean isGooglePlayServicesUpToDate() {
+        final GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
+        final int status =  googleApiAvailability.isGooglePlayServicesAvailable(this);
+        if (status != ConnectionResult.SUCCESS) {
+            FirebaseCrash.logcat(Log.ERROR, LOG_TAG, googleApiAvailability.getErrorString(status));
+
+            googleApiAvailability.getErrorDialog(this, status, RC_PLAY_SERVICES).show();
+            return false;
+        } else {
+            FirebaseCrash.logcat(Log.INFO, LOG_TAG, googleApiAvailability.getErrorString(status));
+            return true;
         }
     }
 }
